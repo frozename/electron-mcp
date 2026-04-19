@@ -39,8 +39,8 @@ Built for multi-agent orchestration systems, so:
 
 ```bash
 # from source
-git clone <this-repo>
-cd electron-mcp-server
+git clone https://github.com/frozename/electron-mcp.git
+cd electron-mcp
 npm install        # or: bun install
 npm run build
 ```
@@ -70,7 +70,7 @@ ELECTRON_MCP_EXECUTABLE_ALLOWLIST=/Applications/*.app/**
   "mcpServers": {
     "electron": {
       "command": "node",
-      "args": ["/absolute/path/to/electron-mcp-server/dist/server/index.js"],
+      "args": ["/absolute/path/to/electron-mcp/dist/server/index.js"],
       "env": {
         "ELECTRON_MCP_EXECUTABLE_ALLOWLIST": "/Applications/*.app/**"
       }
