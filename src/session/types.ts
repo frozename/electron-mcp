@@ -14,6 +14,16 @@ export interface ConsoleBuffer {
   instrumented: WeakSet<Page>;
 }
 
+export type DialogPolicy = 'accept' | 'dismiss' | 'auto' | 'none';
+
+export interface DialogState {
+  policy: DialogPolicy;
+  promptText?: string;
+  handled: number;
+  /** Pages we've already wired `page.on('dialog')` on. */
+  instrumented: WeakSet<Page>;
+}
+
 export interface Session {
   id: string;
   label?: string;
@@ -27,6 +37,8 @@ export interface Session {
   lastKnownWindowCount: number;
   /** Ring buffer of console + pageerror entries across all windows. */
   consoleBuffer: ConsoleBuffer;
+  /** Auto-handling policy for alert/confirm/prompt dialogs. */
+  dialog: DialogState;
 }
 
 export interface SessionSnapshot {

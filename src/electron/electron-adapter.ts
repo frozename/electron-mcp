@@ -287,6 +287,80 @@ export class ElectronAdapter {
     }
   }
 
+  async hover(
+    win: Page,
+    selector: string,
+    options: { force: boolean; timeoutMs: number },
+  ): Promise<void> {
+    try {
+      await win.hover(selector, { timeout: options.timeoutMs, force: options.force });
+    } catch (err) {
+      throw this.translateElementError(err, selector);
+    }
+  }
+
+  async press(
+    win: Page,
+    key: string,
+    options: { selector?: string; delay?: number; timeoutMs: number },
+  ): Promise<void> {
+    try {
+      if (options.selector) {
+        const pressOpts: Parameters<Page['press']>[2] = { timeout: options.timeoutMs };
+        if (options.delay !== undefined) pressOpts.delay = options.delay;
+        await win.press(options.selector, key, pressOpts);
+      } else {
+        const kbOpts: Parameters<Page['keyboard']['press']>[1] = {};
+        if (options.delay !== undefined) kbOpts.delay = options.delay;
+        await win.keyboard.press(key, kbOpts);
+      }
+    } catch (err) {
+      const target = options.selector ?? `keyboard:${key}`;
+      throw this.translateElementError(err, target);
+    }
+  }
+
+  async selectOption(
+    win: Page,
+    selector: string,
+    picks: {
+      value?: string | string[];
+      label?: string | string[];
+      index?: number | number[];
+    },
+    options: { timeoutMs: number },
+  ): Promise<string[]> {
+    const descriptors: Array<{ value?: string; label?: string; index?: number }> = [];
+    const pushValue = (v: string): void => {
+      descriptors.push({ value: v });
+    };
+    const pushLabel = (l: string): void => {
+      descriptors.push({ label: l });
+    };
+    const pushIndex = (i: number): void => {
+      descriptors.push({ index: i });
+    };
+
+    if (picks.value !== undefined) {
+      if (Array.isArray(picks.value)) picks.value.forEach(pushValue);
+      else pushValue(picks.value);
+    }
+    if (picks.label !== undefined) {
+      if (Array.isArray(picks.label)) picks.label.forEach(pushLabel);
+      else pushLabel(picks.label);
+    }
+    if (picks.index !== undefined) {
+      if (Array.isArray(picks.index)) picks.index.forEach(pushIndex);
+      else pushIndex(picks.index);
+    }
+
+    try {
+      return await win.selectOption(selector, descriptors, { timeout: options.timeoutMs });
+    } catch (err) {
+      throw this.translateElementError(err, selector);
+    }
+  }
+
   async waitForSelector(
     win: Page,
     selector: string,

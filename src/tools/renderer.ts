@@ -7,8 +7,12 @@ import {
   ElectronClickInputSchema,
   ElectronEvaluateRendererInputSchema,
   ElectronFillInputSchema,
+  ElectronHoverInputSchema,
+  ElectronPressInputSchema,
   ElectronScreenshotInputSchema,
   ElectronScreenshotOutputSchema,
+  ElectronSelectOptionInputSchema,
+  ElectronSelectOptionOutputSchema,
   ElectronWaitForSelectorInputSchema,
   ElectronWaitForSelectorOutputSchema,
   EvaluateOutputSchema,
@@ -17,8 +21,12 @@ import {
   type ElectronClickInput,
   type ElectronEvaluateRendererInput,
   type ElectronFillInput,
+  type ElectronHoverInput,
+  type ElectronPressInput,
   type ElectronScreenshotInput,
   type ElectronScreenshotOutput,
+  type ElectronSelectOptionInput,
+  type ElectronSelectOptionOutput,
   type ElectronWaitForSelectorInput,
   type ElectronWaitForSelectorOutput,
   type EvaluateOutput,
@@ -124,6 +132,62 @@ export const electronScreenshot: ToolHandler<
     type: input.type,
   };
   return ElectronScreenshotOutputSchema.parse(output);
+};
+
+export const electronHover: ToolHandler<ElectronHoverInput, OkWithSession> = async (
+  rawInput,
+  ctx,
+) => {
+  const input = ElectronHoverInputSchema.parse(rawInput);
+  const session = ctx.sessions.get(input.sessionId);
+  const timeoutMs = input.timeout ?? ctx.config.actionTimeoutMs;
+  const page = await ctx.adapter.resolveWindow(session.app, input.window);
+
+  await ctx.adapter.hover(page, input.selector, { force: input.force, timeoutMs });
+  ctx.sessions.touch(session);
+
+  return { ok: true, sessionId: session.id };
+};
+
+export const electronPress: ToolHandler<ElectronPressInput, OkWithSession> = async (
+  rawInput,
+  ctx,
+) => {
+  const input = ElectronPressInputSchema.parse(rawInput);
+  const session = ctx.sessions.get(input.sessionId);
+  const timeoutMs = input.timeout ?? ctx.config.actionTimeoutMs;
+  const page = await ctx.adapter.resolveWindow(session.app, input.window);
+
+  const pressOpts: Parameters<typeof ctx.adapter.press>[2] = { timeoutMs };
+  if (input.selector) pressOpts.selector = input.selector;
+  if (input.delay !== undefined) pressOpts.delay = input.delay;
+  await ctx.adapter.press(page, input.key, pressOpts);
+  ctx.sessions.touch(session);
+
+  return { ok: true, sessionId: session.id };
+};
+
+export const electronSelectOption: ToolHandler<
+  ElectronSelectOptionInput,
+  ElectronSelectOptionOutput
+> = async (rawInput, ctx) => {
+  const input = ElectronSelectOptionInputSchema.parse(rawInput);
+  const session = ctx.sessions.get(input.sessionId);
+  const timeoutMs = input.timeout ?? ctx.config.actionTimeoutMs;
+  const page = await ctx.adapter.resolveWindow(session.app, input.window);
+
+  const picks: Parameters<typeof ctx.adapter.selectOption>[2] = {};
+  if (input.value !== undefined) picks.value = input.value;
+  if (input.label !== undefined) picks.label = input.label;
+  if (input.index !== undefined) picks.index = input.index;
+  const selected = await ctx.adapter.selectOption(page, input.selector, picks, { timeoutMs });
+  ctx.sessions.touch(session);
+
+  return ElectronSelectOptionOutputSchema.parse({
+    ok: true,
+    sessionId: session.id,
+    selected,
+  });
 };
 
 export const electronWaitForSelector: ToolHandler<

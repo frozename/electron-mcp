@@ -3,7 +3,11 @@ import {
   ElectronAccessibilitySnapshotInputSchema,
   ElectronClickInputSchema,
   ElectronConsoleTailInputSchema,
+  ElectronDialogPolicyInputSchema,
+  ElectronHoverInputSchema,
   ElectronLaunchInputSchema,
+  ElectronPressInputSchema,
+  ElectronSelectOptionInputSchema,
   ElectronWaitForSelectorInputSchema,
   ElectronWaitForWindowInputSchema,
 } from '../src/schemas/index.js';
@@ -74,6 +78,56 @@ describe('ElectronAccessibilitySnapshotInputSchema', () => {
       sessionId: 'sess_1',
     });
     expect(parsed.interestingOnly).toBe(true);
+  });
+});
+
+describe('ElectronHoverInputSchema', () => {
+  test('defaults force to false', () => {
+    const parsed = ElectronHoverInputSchema.parse({ sessionId: 's', selector: '#x' });
+    expect(parsed.force).toBe(false);
+  });
+});
+
+describe('ElectronPressInputSchema', () => {
+  test('accepts modifier combos', () => {
+    const parsed = ElectronPressInputSchema.parse({ sessionId: 's', key: 'Meta+K' });
+    expect(parsed.key).toBe('Meta+K');
+  });
+
+  test('rejects empty key', () => {
+    expect(() => ElectronPressInputSchema.parse({ sessionId: 's', key: '' })).toThrow();
+  });
+});
+
+describe('ElectronSelectOptionInputSchema', () => {
+  test('accepts value', () => {
+    const parsed = ElectronSelectOptionInputSchema.parse({
+      sessionId: 's',
+      selector: '#drop',
+      value: 'opt1',
+    });
+    expect(parsed.value).toBe('opt1');
+  });
+
+  test('rejects when no pick is given', () => {
+    expect(() =>
+      ElectronSelectOptionInputSchema.parse({ sessionId: 's', selector: '#drop' }),
+    ).toThrow(/value, label, or index/);
+  });
+});
+
+describe('ElectronDialogPolicyInputSchema', () => {
+  test('accepts each policy', () => {
+    for (const policy of ['accept', 'dismiss', 'auto', 'none'] as const) {
+      const parsed = ElectronDialogPolicyInputSchema.parse({ sessionId: 's', policy });
+      expect(parsed.policy).toBe(policy);
+    }
+  });
+
+  test('rejects unknown policy', () => {
+    expect(() =>
+      ElectronDialogPolicyInputSchema.parse({ sessionId: 's', policy: 'ignore' }),
+    ).toThrow();
   });
 });
 

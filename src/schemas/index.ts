@@ -243,6 +243,113 @@ export const ElectronWaitForSelectorOutputSchema = z.object({
 export type ElectronWaitForSelectorOutput = z.infer<typeof ElectronWaitForSelectorOutputSchema>;
 
 /* ------------------------------------------------------------------ */
+/* Hover                                                               */
+/* ------------------------------------------------------------------ */
+
+export const ElectronHoverInputSchema = z.object({
+  sessionId: SessionIdSchema,
+  window: WindowRefSchema.optional(),
+  selector: z.string().min(1),
+  force: z.boolean().optional().default(false),
+  timeout: TimeoutSchema,
+});
+export type ElectronHoverInput = z.infer<typeof ElectronHoverInputSchema>;
+
+/* ------------------------------------------------------------------ */
+/* Keyboard press                                                      */
+/* ------------------------------------------------------------------ */
+
+export const ElectronPressInputSchema = z.object({
+  sessionId: SessionIdSchema,
+  window: WindowRefSchema.optional(),
+  selector: z
+    .string()
+    .optional()
+    .describe('Optional — focus this selector before sending the key.'),
+  key: z
+    .string()
+    .min(1)
+    .describe(
+      'Playwright key string. Single key ("Enter", "Escape", "Tab", "ArrowDown") ' +
+        'or modifier combos joined by "+" ("Meta+K", "Control+Shift+P").',
+    ),
+  delay: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .describe('Delay between keydown and keyup in ms.'),
+  timeout: TimeoutSchema,
+});
+export type ElectronPressInput = z.infer<typeof ElectronPressInputSchema>;
+
+/* ------------------------------------------------------------------ */
+/* Select option                                                       */
+/* ------------------------------------------------------------------ */
+
+export const ElectronSelectOptionInputSchema = z
+  .object({
+    sessionId: SessionIdSchema,
+    window: WindowRefSchema.optional(),
+    selector: z.string().min(1).describe('CSS selector for the <select> element.'),
+    value: z
+      .union([z.string(), z.array(z.string())])
+      .optional()
+      .describe('Pick option(s) by `value` attribute.'),
+    label: z
+      .union([z.string(), z.array(z.string())])
+      .optional()
+      .describe('Pick option(s) by visible label.'),
+    index: z
+      .union([z.number().int().nonnegative(), z.array(z.number().int().nonnegative())])
+      .optional()
+      .describe('Pick option(s) by zero-based index.'),
+    timeout: TimeoutSchema,
+  })
+  .refine(
+    (v) => v.value !== undefined || v.label !== undefined || v.index !== undefined,
+    { message: 'One of value, label, or index is required' },
+  );
+export type ElectronSelectOptionInput = z.infer<typeof ElectronSelectOptionInputSchema>;
+
+export const ElectronSelectOptionOutputSchema = z.object({
+  ok: z.literal(true),
+  sessionId: z.string(),
+  selected: z.array(z.string()).describe('The option values that were selected.'),
+});
+export type ElectronSelectOptionOutput = z.infer<typeof ElectronSelectOptionOutputSchema>;
+
+/* ------------------------------------------------------------------ */
+/* Dialog policy                                                       */
+/* ------------------------------------------------------------------ */
+
+export const DialogPolicyKindSchema = z
+  .enum(['accept', 'dismiss', 'auto', 'none'])
+  .describe(
+    'accept: auto-accept every alert/confirm/prompt. dismiss: auto-dismiss everything. ' +
+      'auto: accept alerts, dismiss confirm/prompt (safer default). none: clear policy — dialogs ' +
+      'will block the page until a user dismisses them.',
+  );
+
+export const ElectronDialogPolicyInputSchema = z.object({
+  sessionId: SessionIdSchema,
+  policy: DialogPolicyKindSchema,
+  promptText: z
+    .string()
+    .optional()
+    .describe('Text to supply when accepting prompt() dialogs.'),
+});
+export type ElectronDialogPolicyInput = z.infer<typeof ElectronDialogPolicyInputSchema>;
+
+export const ElectronDialogPolicyOutputSchema = z.object({
+  ok: z.literal(true),
+  sessionId: z.string(),
+  policy: DialogPolicyKindSchema,
+  handled: z.number().int().nonnegative().describe('Total dialogs handled since the session started.'),
+});
+export type ElectronDialogPolicyOutput = z.infer<typeof ElectronDialogPolicyOutputSchema>;
+
+/* ------------------------------------------------------------------ */
 /* Accessibility snapshot                                              */
 /* ------------------------------------------------------------------ */
 

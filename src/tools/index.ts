@@ -4,12 +4,16 @@ import {
   ElectronAccessibilitySnapshotInputSchema,
   ElectronCloseInputSchema,
   ElectronConsoleTailInputSchema,
+  ElectronDialogPolicyInputSchema,
   ElectronFillInputSchema,
   ElectronFocusWindowInputSchema,
+  ElectronHoverInputSchema,
   ElectronLaunchInputSchema,
   ElectronListWindowsInputSchema,
+  ElectronPressInputSchema,
   ElectronRestartInputSchema,
   ElectronScreenshotInputSchema,
+  ElectronSelectOptionInputSchema,
   ElectronWaitForSelectorInputSchema,
   ElectronWaitForWindowInputSchema,
   ElectronClickInputSchema,
@@ -18,6 +22,7 @@ import {
 } from '../schemas/index.js';
 
 import { electronConsoleTail } from './console.js';
+import { electronDialogPolicy } from './dialogs.js';
 import {
   electronClose,
   electronLaunch,
@@ -30,7 +35,10 @@ import {
   electronClick,
   electronEvaluateRenderer,
   electronFill,
+  electronHover,
+  electronPress,
   electronScreenshot,
+  electronSelectOption,
   electronWaitForSelector,
 } from './renderer.js';
 import type { ToolContext, ToolHandler } from './types.js';
@@ -159,6 +167,39 @@ export function buildToolRegistry(): ToolDefinition[] {
         'entries from the buffer so subsequent tails only see new messages.',
       inputSchema: zodToJsonSchema(ElectronConsoleTailInputSchema),
       handler: electronConsoleTail as unknown as ToolHandler<unknown, unknown>,
+    },
+    {
+      name: 'electron_hover',
+      description: 'Move the mouse over an element to reveal tooltips, submenus, or hover-only UI.',
+      inputSchema: zodToJsonSchema(ElectronHoverInputSchema),
+      handler: electronHover as unknown as ToolHandler<unknown, unknown>,
+    },
+    {
+      name: 'electron_press',
+      description:
+        'Send a keyboard key (or modifier+key combo like "Meta+K", "Control+Shift+P") to the ' +
+        'focused element. If a selector is given, focus it first. Use for keyboard shortcuts, ' +
+        'Escape, Tab navigation, Enter submissions.',
+      inputSchema: zodToJsonSchema(ElectronPressInputSchema),
+      handler: electronPress as unknown as ToolHandler<unknown, unknown>,
+    },
+    {
+      name: 'electron_select_option',
+      description:
+        'Select one or more options in a <select> element. Pick by value, label, or index. ' +
+        'Returns the values of the selected option(s).',
+      inputSchema: zodToJsonSchema(ElectronSelectOptionInputSchema),
+      handler: electronSelectOption as unknown as ToolHandler<unknown, unknown>,
+    },
+    {
+      name: 'electron_dialog_policy',
+      description:
+        'Set the session-wide policy for browser alert/confirm/prompt dialogs. Policies: accept ' +
+        '(always accept, using promptText for prompts), dismiss (always dismiss), auto (accept ' +
+        'alerts, dismiss everything else), none (leave dialogs pending). Applies to current and ' +
+        'future windows.',
+      inputSchema: zodToJsonSchema(ElectronDialogPolicyInputSchema),
+      handler: electronDialogPolicy as unknown as ToolHandler<unknown, unknown>,
     },
 
     /* ---------------- Main process ---------------- */

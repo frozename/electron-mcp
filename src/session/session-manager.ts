@@ -5,6 +5,7 @@ import type { Logger } from '../logging/logger.js';
 import { newSessionId } from '../utils/ids.js';
 
 import { createConsoleBuffer, instrumentSession } from './console-buffer.js';
+import { createDialogState, instrumentSessionForDialogs } from './dialog-policy.js';
 import type { Session, SessionSnapshot, SessionStatus } from './types.js';
 import { serializeSession } from './types.js';
 
@@ -54,10 +55,12 @@ export class SessionManager {
       lastUsedAt: now,
       lastKnownWindowCount: input.app.windows().length,
       consoleBuffer: createConsoleBuffer(),
+      dialog: createDialogState(),
     };
     this.sessions.set(id, session);
 
     instrumentSession(session);
+    instrumentSessionForDialogs(session);
 
     input.app.on('close', () => {
       const current = this.sessions.get(id);
