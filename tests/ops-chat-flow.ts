@@ -196,6 +196,44 @@ async function main(): Promise<void> {
       `tier=${String(tierEl.result)}`,
     );
 
+    // Run the step so the audit journal captures an entry.
+    await client.call('electron_click', {
+      sessionId,
+      selector: '[data-testid="ops-chat-step-0-run"]',
+    });
+    await client.call('electron_wait_for_selector', {
+      sessionId,
+      selector: '[data-testid="ops-chat-step-0-result"]',
+      state: 'visible',
+      timeout: 8_000,
+    });
+    const stepOk = (await client.call('electron_evaluate_renderer', {
+      sessionId,
+      expression:
+        'document.querySelector(\'[data-testid="ops-chat-step-0-result"]\')?.getAttribute("data-ok")',
+    })) as { result: string | null };
+    // Read tools against a fresh in-proc router succeed or at worst
+    // return a structured envelope — either way the card should
+    // resolve. We assert the attribute is set.
+    check(
+      'step 0 result card has data-ok',
+      stepOk.result === 'true' || stepOk.result === 'false',
+      `data-ok=${String(stepOk.result)}`,
+    );
+
+    // Audit panel reports at least one entry after the run.
+    await client.call('electron_click', {
+      sessionId,
+      selector: '[data-testid="ops-chat-audit-details"] summary',
+    });
+    await client.call('electron_wait_for_selector', {
+      sessionId,
+      selector: '[data-testid="ops-chat-audit-entry-0"]',
+      state: 'visible',
+      timeout: 8_000,
+    });
+    check('audit panel shows at least one entry after the run', true);
+
     // Reset clears the transcript.
     await client.call('electron_click', {
       sessionId,
