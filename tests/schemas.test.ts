@@ -6,8 +6,12 @@ import {
   ElectronDialogPolicyInputSchema,
   ElectronHoverInputSchema,
   ElectronLaunchInputSchema,
+  ElectronNetworkTailInputSchema,
   ElectronPressInputSchema,
   ElectronSelectOptionInputSchema,
+  ElectronTraceStartInputSchema,
+  ElectronTraceStopInputSchema,
+  ElectronWaitForNewWindowInputSchema,
   ElectronWaitForSelectorInputSchema,
   ElectronWaitForWindowInputSchema,
 } from '../src/schemas/index.js';
@@ -142,5 +146,47 @@ describe('ElectronConsoleTailInputSchema', () => {
     expect(() =>
       ElectronConsoleTailInputSchema.parse({ sessionId: 'sess_1', limit: 99999 }),
     ).toThrow();
+  });
+});
+
+describe('ElectronNetworkTailInputSchema', () => {
+  test('defaults limit and filters', () => {
+    const parsed = ElectronNetworkTailInputSchema.parse({ sessionId: 's' });
+    expect(parsed.limit).toBe(100);
+    expect(parsed.onlyFailures).toBe(false);
+    expect(parsed.drain).toBe(false);
+  });
+
+  test('status filter accepts 3xx/4xx', () => {
+    const parsed = ElectronNetworkTailInputSchema.parse({ sessionId: 's', status: [404, 500] });
+    expect(parsed.status).toEqual([404, 500]);
+  });
+
+  test('rejects invalid status', () => {
+    expect(() =>
+      ElectronNetworkTailInputSchema.parse({ sessionId: 's', status: [99] }),
+    ).toThrow();
+  });
+});
+
+describe('ElectronWaitForNewWindowInputSchema', () => {
+  test('all filters optional', () => {
+    const parsed = ElectronWaitForNewWindowInputSchema.parse({ sessionId: 's' });
+    expect(parsed.sessionId).toBe('s');
+  });
+});
+
+describe('ElectronTraceStartInputSchema', () => {
+  test('defaults', () => {
+    const parsed = ElectronTraceStartInputSchema.parse({ sessionId: 's' });
+    expect(parsed.screenshots).toBe(true);
+    expect(parsed.snapshots).toBe(true);
+    expect(parsed.sources).toBe(false);
+  });
+});
+
+describe('ElectronTraceStopInputSchema', () => {
+  test('requires path', () => {
+    expect(() => ElectronTraceStopInputSchema.parse({ sessionId: 's' })).toThrow();
   });
 });

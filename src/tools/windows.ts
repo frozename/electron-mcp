@@ -2,10 +2,14 @@ import {
   ElectronFocusWindowInputSchema,
   ElectronListWindowsInputSchema,
   ElectronListWindowsOutputSchema,
+  ElectronWaitForNewWindowInputSchema,
+  ElectronWaitForNewWindowOutputSchema,
   ElectronWaitForWindowInputSchema,
   type ElectronFocusWindowInput,
   type ElectronListWindowsInput,
   type ElectronListWindowsOutput,
+  type ElectronWaitForNewWindowInput,
+  type ElectronWaitForNewWindowOutput,
   type ElectronWaitForWindowInput,
   type OkWithSession,
 } from '../schemas/index.js';
@@ -80,4 +84,28 @@ export const electronWaitForWindow: ToolHandler<
     url: page.url(),
     title,
   };
+};
+
+export const electronWaitForNewWindow: ToolHandler<
+  ElectronWaitForNewWindowInput,
+  ElectronWaitForNewWindowOutput
+> = async (rawInput, ctx) => {
+  const input = ElectronWaitForNewWindowInputSchema.parse(rawInput);
+  const session = ctx.sessions.get(input.sessionId);
+  const timeoutMs = input.timeout ?? ctx.config.actionTimeoutMs;
+
+  const predicate: Parameters<typeof ctx.adapter.waitForNewWindow>[1] = {};
+  if (input.urlPattern !== undefined) predicate.urlPattern = input.urlPattern;
+  if (input.titlePattern !== undefined) predicate.titlePattern = input.titlePattern;
+
+  const page = await ctx.adapter.waitForNewWindow(session.app, predicate, timeoutMs);
+  const idx = session.app.windows().indexOf(page);
+  const description = await ctx.adapter.describeWindow(page, idx >= 0 ? idx : 0);
+  ctx.sessions.touch(session);
+
+  return ElectronWaitForNewWindowOutputSchema.parse({
+    ok: true,
+    sessionId: session.id,
+    window: description,
+  });
 };

@@ -6,6 +6,7 @@ import { newSessionId } from '../utils/ids.js';
 
 import { createConsoleBuffer, instrumentSession } from './console-buffer.js';
 import { createDialogState, instrumentSessionForDialogs } from './dialog-policy.js';
+import { createNetworkBuffer, instrumentSessionForNetwork } from './network-buffer.js';
 import type { Session, SessionSnapshot, SessionStatus } from './types.js';
 import { serializeSession } from './types.js';
 
@@ -56,11 +57,14 @@ export class SessionManager {
       lastKnownWindowCount: input.app.windows().length,
       consoleBuffer: createConsoleBuffer(),
       dialog: createDialogState(),
+      networkBuffer: createNetworkBuffer(),
+      tracingActive: false,
     };
     this.sessions.set(id, session);
 
     instrumentSession(session);
     instrumentSessionForDialogs(session);
+    instrumentSessionForNetwork(session);
 
     input.app.on('close', () => {
       const current = this.sessions.get(id);

@@ -10,10 +10,14 @@ import {
   ElectronHoverInputSchema,
   ElectronLaunchInputSchema,
   ElectronListWindowsInputSchema,
+  ElectronNetworkTailInputSchema,
   ElectronPressInputSchema,
   ElectronRestartInputSchema,
   ElectronScreenshotInputSchema,
   ElectronSelectOptionInputSchema,
+  ElectronTraceStartInputSchema,
+  ElectronTraceStopInputSchema,
+  ElectronWaitForNewWindowInputSchema,
   ElectronWaitForSelectorInputSchema,
   ElectronWaitForWindowInputSchema,
   ElectronClickInputSchema,
@@ -30,6 +34,7 @@ import {
   electronRestart,
 } from './lifecycle.js';
 import { electronEvaluateMain } from './main.js';
+import { electronNetworkTail } from './network.js';
 import {
   electronAccessibilitySnapshot,
   electronClick,
@@ -41,8 +46,14 @@ import {
   electronSelectOption,
   electronWaitForSelector,
 } from './renderer.js';
+import { electronTraceStart, electronTraceStop } from './tracing.js';
 import type { ToolContext, ToolHandler } from './types.js';
-import { electronFocusWindow, electronListWindows, electronWaitForWindow } from './windows.js';
+import {
+  electronFocusWindow,
+  electronListWindows,
+  electronWaitForNewWindow,
+  electronWaitForWindow,
+} from './windows.js';
 
 export interface ToolDefinition {
   name: string;
@@ -111,6 +122,14 @@ export function buildToolRegistry(): ToolDefinition[] {
         'Wait until a window matching a URL/title pattern (or a specific index) is available.',
       inputSchema: zodToJsonSchema(ElectronWaitForWindowInputSchema),
       handler: electronWaitForWindow as unknown as ToolHandler<unknown, unknown>,
+    },
+    {
+      name: 'electron_wait_for_new_window',
+      description:
+        'Wait until a NEW window appears in the session (e.g. modal/popup opened by user action). ' +
+        'Optional URL/title filters. Returns the new window descriptor (index, url, title).',
+      inputSchema: zodToJsonSchema(ElectronWaitForNewWindowInputSchema),
+      handler: electronWaitForNewWindow as unknown as ToolHandler<unknown, unknown>,
     },
 
     /* ---------------- Renderer ---------------- */
@@ -200,6 +219,31 @@ export function buildToolRegistry(): ToolDefinition[] {
         'future windows.',
       inputSchema: zodToJsonSchema(ElectronDialogPolicyInputSchema),
       handler: electronDialogPolicy as unknown as ToolHandler<unknown, unknown>,
+    },
+    {
+      name: 'electron_network_tail',
+      description:
+        'Drain up to N recent HTTP request/response entries captured by the session ring buffer. ' +
+        'Supports urlPattern (regex), status-list, onlyFailures, and drain semantics. Captures ' +
+        'method, status, resourceType, duration, and approximate body sizes.',
+      inputSchema: zodToJsonSchema(ElectronNetworkTailInputSchema),
+      handler: electronNetworkTail as unknown as ToolHandler<unknown, unknown>,
+    },
+    {
+      name: 'electron_trace_start',
+      description:
+        'Start Playwright tracing for this session. Captures screenshots, snapshots, and ' +
+        'optionally sources. Pair with electron_trace_stop to write a .zip viewable via ' +
+        '`playwright show-trace`.',
+      inputSchema: zodToJsonSchema(ElectronTraceStartInputSchema),
+      handler: electronTraceStart as unknown as ToolHandler<unknown, unknown>,
+    },
+    {
+      name: 'electron_trace_stop',
+      description:
+        'Stop Playwright tracing and write the trace bundle to `path` (absolute).',
+      inputSchema: zodToJsonSchema(ElectronTraceStopInputSchema),
+      handler: electronTraceStop as unknown as ToolHandler<unknown, unknown>,
     },
 
     /* ---------------- Main process ---------------- */

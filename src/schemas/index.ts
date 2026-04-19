@@ -410,6 +410,113 @@ export type ElectronAccessibilitySnapshotOutput = z.infer<
 >;
 
 /* ------------------------------------------------------------------ */
+/* Network tail                                                        */
+/* ------------------------------------------------------------------ */
+
+export const NetworkEntrySchema = z.object({
+  ts: z.string().describe('ISO timestamp when the response/failure completed.'),
+  method: z.string(),
+  url: z.string(),
+  status: z.number().int().optional(),
+  statusText: z.string().optional(),
+  resourceType: z.string().optional().describe('document, fetch, xhr, script, image, etc.'),
+  fromCache: z.boolean().optional(),
+  durationMs: z.number().int().nonnegative().optional(),
+  requestSizeBytes: z.number().int().nonnegative().optional(),
+  responseSizeBytes: z.number().int().nonnegative().optional(),
+  failed: z.boolean().optional(),
+  failureText: z.string().optional(),
+  windowIndex: z.number().int().nonnegative().optional(),
+});
+export type NetworkEntry = z.infer<typeof NetworkEntrySchema>;
+
+export const ElectronNetworkTailInputSchema = z.object({
+  sessionId: SessionIdSchema,
+  limit: z.number().int().positive().max(1000).optional().default(100),
+  urlPattern: z
+    .string()
+    .optional()
+    .describe('Regex filter applied to request URL. Case-sensitive.'),
+  status: z
+    .array(z.number().int().min(100).max(599))
+    .optional()
+    .describe('Only keep entries whose status is in this list.'),
+  onlyFailures: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('If true, only entries with status >= 400 or failed=true.'),
+  drain: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Remove returned entries from the buffer.'),
+});
+export type ElectronNetworkTailInput = z.infer<typeof ElectronNetworkTailInputSchema>;
+
+export const ElectronNetworkTailOutputSchema = z.object({
+  ok: z.literal(true),
+  sessionId: z.string(),
+  entries: z.array(NetworkEntrySchema),
+  dropped: z.number().int().nonnegative(),
+  bufferSize: z.number().int().nonnegative(),
+});
+export type ElectronNetworkTailOutput = z.infer<typeof ElectronNetworkTailOutputSchema>;
+
+/* ------------------------------------------------------------------ */
+/* Wait for new window                                                 */
+/* ------------------------------------------------------------------ */
+
+export const ElectronWaitForNewWindowInputSchema = z.object({
+  sessionId: SessionIdSchema,
+  urlPattern: z.string().optional(),
+  titlePattern: z.string().optional(),
+  timeout: TimeoutSchema,
+});
+export type ElectronWaitForNewWindowInput = z.infer<typeof ElectronWaitForNewWindowInputSchema>;
+
+export const ElectronWaitForNewWindowOutputSchema = z.object({
+  ok: z.literal(true),
+  sessionId: z.string(),
+  window: WindowDescriptorSchema,
+});
+export type ElectronWaitForNewWindowOutput = z.infer<typeof ElectronWaitForNewWindowOutputSchema>;
+
+/* ------------------------------------------------------------------ */
+/* Tracing                                                             */
+/* ------------------------------------------------------------------ */
+
+export const ElectronTraceStartInputSchema = z.object({
+  sessionId: SessionIdSchema,
+  screenshots: z.boolean().optional().default(true),
+  snapshots: z.boolean().optional().default(true),
+  sources: z.boolean().optional().default(false),
+  title: z.string().optional().describe('Short label stored in the trace metadata.'),
+});
+export type ElectronTraceStartInput = z.infer<typeof ElectronTraceStartInputSchema>;
+
+export const ElectronTraceStartOutputSchema = z.object({
+  ok: z.literal(true),
+  sessionId: z.string(),
+  tracing: z.literal(true),
+});
+export type ElectronTraceStartOutput = z.infer<typeof ElectronTraceStartOutputSchema>;
+
+export const ElectronTraceStopInputSchema = z.object({
+  sessionId: SessionIdSchema,
+  path: z.string().describe('Absolute path for the trace .zip.'),
+});
+export type ElectronTraceStopInput = z.infer<typeof ElectronTraceStopInputSchema>;
+
+export const ElectronTraceStopOutputSchema = z.object({
+  ok: z.literal(true),
+  sessionId: z.string(),
+  path: z.string(),
+  byteLength: z.number().int().nonnegative(),
+});
+export type ElectronTraceStopOutput = z.infer<typeof ElectronTraceStopOutputSchema>;
+
+/* ------------------------------------------------------------------ */
 /* Console tail                                                        */
 /* ------------------------------------------------------------------ */
 

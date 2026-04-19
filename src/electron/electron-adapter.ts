@@ -287,6 +287,77 @@ export class ElectronAdapter {
     }
   }
 
+  async waitForNewWindow(
+    app: ElectronApplication,
+    predicate: { urlPattern?: string; titlePattern?: string },
+    timeoutMs: number,
+  ): Promise<Page> {
+    const existing = new Set(app.windows());
+    const matches = async (win: Page): Promise<boolean> => {
+      if (!predicate.urlPattern && !predicate.titlePattern) return true;
+      const url = win.url();
+      if (predicate.urlPattern) {
+        const re = safeRegex(predicate.urlPattern);
+        if (url.includes(predicate.urlPattern) || (re && re.test(url))) return true;
+      }
+      if (predicate.titlePattern) {
+        try {
+          const title = await win.title();
+          const re = safeRegex(predicate.titlePattern);
+          if (title.includes(predicate.titlePattern) || (re && re.test(title))) return true;
+        } catch {
+          /* ignore */
+        }
+      }
+      return false;
+    };
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        app.off('window', onWindow);
+        reject(new WindowNotFoundError(describePredicate(predicate)));
+      }, timeoutMs);
+      const onWindow = async (win: Page): Promise<void> => {
+        if (existing.has(win)) return;
+        try {
+          if (await matches(win)) {
+            clearTimeout(timer);
+            app.off('window', onWindow);
+            resolve(win);
+          }
+        } catch (err) {
+          clearTimeout(timer);
+          app.off('window', onWindow);
+          reject(normalizeError(err));
+        }
+      };
+      app.on('window', onWindow);
+    });
+  }
+
+  async traceStart(
+    app: ElectronApplication,
+    options: {
+      screenshots: boolean;
+      snapshots: boolean;
+      sources: boolean;
+      title?: string;
+    },
+  ): Promise<void> {
+    const tracing = app.context().tracing;
+    const startOpts: Parameters<typeof tracing.start>[0] = {
+      screenshots: options.screenshots,
+      snapshots: options.snapshots,
+      sources: options.sources,
+    };
+    if (options.title) startOpts.title = options.title;
+    await tracing.start(startOpts);
+  }
+
+  async traceStop(app: ElectronApplication, outputPath: string): Promise<void> {
+    await app.context().tracing.stop({ path: outputPath });
+  }
+
   async hover(
     win: Page,
     selector: string,

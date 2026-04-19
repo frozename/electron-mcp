@@ -1,6 +1,6 @@
-import type { ElectronApplication, Page } from 'playwright';
+import type { ElectronApplication, Page, Request as PWRequest } from 'playwright';
 
-import type { ConsoleEntry } from '../schemas/index.js';
+import type { ConsoleEntry, NetworkEntry } from '../schemas/index.js';
 
 export type SessionStatus = 'launching' | 'active' | 'closing' | 'closed' | 'crashed';
 
@@ -24,6 +24,15 @@ export interface DialogState {
   instrumented: WeakSet<Page>;
 }
 
+export interface NetworkBuffer {
+  capacity: number;
+  entries: NetworkEntry[];
+  dropped: number;
+  instrumented: WeakSet<Page>;
+  /** request → start timestamp (ms). Used to compute durationMs on response. */
+  started: WeakMap<PWRequest, number>;
+}
+
 export interface Session {
   id: string;
   label?: string;
@@ -39,6 +48,10 @@ export interface Session {
   consoleBuffer: ConsoleBuffer;
   /** Auto-handling policy for alert/confirm/prompt dialogs. */
   dialog: DialogState;
+  /** Ring buffer of request/response events. */
+  networkBuffer: NetworkBuffer;
+  /** Tracing state — true while Playwright tracing is active. */
+  tracingActive: boolean;
 }
 
 export interface SessionSnapshot {
