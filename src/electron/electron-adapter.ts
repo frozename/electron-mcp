@@ -401,13 +401,21 @@ function describePredicate(p: {
  * The `arg` / `electron` / `arg` identifiers are made available via the
  * wrapping `new Function(...)` signature.
  */
-function buildFunctionSource(expression: string): string {
+export function buildFunctionSource(expression: string): string {
   const trimmed = expression.trim();
-  if (
-    /^[\s\S]*\breturn\b/.test(trimmed) ||
-    /;\s*$/.test(trimmed) ||
-    /^\{[\s\S]*\}$/.test(trimmed)
-  ) {
+  // Three shapes the caller may supply:
+  //   1. Block body in braces:         `{ const x = 1; return x; }`
+  //   2. Explicit `return` statement:  `return document.title;`
+  //   3. Bare expression:              `document.title` / `(async () => { … })()`
+  //
+  // The earlier heuristic also matched any occurrence of the word
+  // `return` — even nested inside an IIFE — and treated the whole
+  // string as a statement, which silently evaluated the IIFE without
+  // a top-level return. That returned `undefined` from the
+  // `new Function('arg', body)` wrapper. Fix: only treat the input
+  // as a statement form when `return` appears as the literal top-
+  // level keyword (`return …`) or the string is wrapped in braces.
+  if (/^\{[\s\S]*\}$/.test(trimmed) || /^return\b/.test(trimmed)) {
     return trimmed;
   }
   return `return (${trimmed});`;
