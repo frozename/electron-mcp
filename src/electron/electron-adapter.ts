@@ -336,13 +336,21 @@ export class ElectronAdapter {
           properties?: AXPropertyValue[];
           childIds?: string[];
           ignored?: boolean;
+          backendDOMNodeId?: number;
         }
 
-        let raw: { nodes: AXNodeRaw[] };
+        // Fetch the full AX tree unconditionally. `getPartialAXTree` does not
+        // recurse into descendants (only ancestors + immediate children), so
+        // scoping to a root there loses the interesting subtree. We grab the
+        // whole thing and slice locally when a root selector is given.
+        const raw = (await withTimeout(
+          client.send('Accessibility.getFullAXTree', {}),
+          options.timeoutMs,
+          'cdp.accessibility.getFullAXTree',
+        )) as { nodes: AXNodeRaw[] };
+
+        let rootBackendId: number | undefined;
         if (options.root) {
-          // Wait for the selector to exist in the DOM first, then resolve it
-          // to a CDP objectId via Runtime.evaluate. Avoids depending on any
-          // Playwright internal ElementHandle shape.
           await win.waitForSelector(options.root, {
             state: 'attached',
             timeout: options.timeoutMs,
@@ -359,27 +367,16 @@ export class ElectronAdapter {
           const described = (await client.send('DOM.describeNode', {
             objectId,
           })) as { node?: { backendNodeId?: number } };
-          const backendNodeId = described.node?.backendNodeId;
-          if (backendNodeId === undefined) {
+          rootBackendId = described.node?.backendNodeId;
+          if (rootBackendId === undefined) {
             throw new SelectorError(options.root, 'could not resolve backendNodeId');
           }
-          raw = (await withTimeout(
-            client.send('Accessibility.getPartialAXTree', {
-              backendNodeId,
-              fetchRelatives: true,
-            }),
-            options.timeoutMs,
-            'cdp.accessibility.getPartialAXTree',
-          )) as { nodes: AXNodeRaw[] };
-        } else {
-          raw = (await withTimeout(
-            client.send('Accessibility.getFullAXTree', {}),
-            options.timeoutMs,
-            'cdp.accessibility.getFullAXTree',
-          )) as { nodes: AXNodeRaw[] };
         }
 
-        return axTreeToSnapshot(raw.nodes, { interestingOnly: options.interestingOnly });
+        return axTreeToSnapshot(raw.nodes, {
+          interestingOnly: options.interestingOnly,
+          ...(rootBackendId !== undefined ? { rootBackendId } : {}),
+        });
       } finally {
         try {
           await client.detach();
@@ -502,6 +499,7 @@ interface AXSnapshotNodeRaw {
   properties?: AXSnapshotProperty[];
   childIds?: string[];
   ignored?: boolean;
+  backendDOMNodeId?: number;
 }
 
 interface AXSnapshotOut {
@@ -524,13 +522,18 @@ function valueOf(v: AXSnapshotValue | undefined): unknown {
 
 function axTreeToSnapshot(
   nodes: AXSnapshotNodeRaw[],
-  options: { interestingOnly: boolean },
+  options: { interestingOnly: boolean; rootBackendId?: number },
 ): AXSnapshotOut | null {
   const byId = new Map<string, AXSnapshotNodeRaw>();
   for (const n of nodes) byId.set(n.nodeId, n);
 
-  // Pick the root: prefer a node with no parentId, else the first.
-  const root = nodes.find((n) => !n.parentId) ?? nodes[0];
+  // Pick the root: scoped to the supplied backend node when present, else
+  // the first node without a parent (the full tree's RootWebArea).
+  let root: AXSnapshotNodeRaw | undefined;
+  if (options.rootBackendId !== undefined) {
+    root = nodes.find((n) => n.backendDOMNodeId === options.rootBackendId);
+  }
+  root = root ?? nodes.find((n) => !n.parentId) ?? nodes[0];
   if (!root) return null;
 
   const convert = (n: AXSnapshotNodeRaw): AXSnapshotOut | null => {
