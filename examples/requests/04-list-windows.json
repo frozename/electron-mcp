@@ -1,0 +1,11 @@
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "tools/call",
+  "params": {
+    "name": "electron_list_windows",
+    "arguments": {
+      "sessionId": "REPLACE_WITH_SESSION_ID"
+    }
+  }
+}

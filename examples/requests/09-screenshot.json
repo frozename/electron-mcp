@@ -1,0 +1,14 @@
+{
+  "jsonrpc": "2.0",
+  "id": 9,
+  "method": "tools/call",
+  "params": {
+    "name": "electron_screenshot",
+    "arguments": {
+      "sessionId": "REPLACE_WITH_SESSION_ID",
+      "path": "./screenshots/dashboard.png",
+      "fullPage": true,
+      "type": "png"
+    }
+  }
+}

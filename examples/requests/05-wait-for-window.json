@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "tools/call",
+  "params": {
+    "name": "electron_wait_for_window",
+    "arguments": {
+      "sessionId": "REPLACE_WITH_SESSION_ID",
+      "urlPattern": "/login",
+      "timeout": 10000
+    }
+  }
+}

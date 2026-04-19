@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "tools/call",
+  "params": {
+    "name": "electron_fill",
+    "arguments": {
+      "sessionId": "REPLACE_WITH_SESSION_ID",
+      "selector": "input#email",
+      "value": "user@example.com"
+    }
+  }
+}

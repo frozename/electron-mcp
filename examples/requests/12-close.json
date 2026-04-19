@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 12,
+  "method": "tools/call",
+  "params": {
+    "name": "electron_close",
+    "arguments": {
+      "sessionId": "REPLACE_WITH_SESSION_ID",
+      "force": false
+    }
+  }
+}

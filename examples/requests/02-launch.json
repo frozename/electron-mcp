@@ -1,0 +1,14 @@
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "electron_launch",
+    "arguments": {
+      "executablePath": "/path/to/your/app",
+      "args": ["--enable-logging"],
+      "label": "my-app",
+      "timeout": 30000
+    }
+  }
+}

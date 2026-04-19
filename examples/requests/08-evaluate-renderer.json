@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "method": "tools/call",
+  "params": {
+    "name": "electron_evaluate_renderer",
+    "arguments": {
+      "sessionId": "REPLACE_WITH_SESSION_ID",
+      "expression": "document.querySelectorAll('.row').length"
+    }
+  }
+}
