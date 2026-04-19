@@ -46,20 +46,30 @@ src/
 ├── schemas/             Every tool's Zod input/output schemas. Types
 │                        are derived via z.infer; JSON Schema is emitted
 │                        via z.toJSONSchema in utils/zod-to-json.ts.
-├── session/             SessionManager: in-memory registry, cap
-│                        enforcement, close/closeAll. No Playwright
-│                        imports above this level.
+├── session/             SessionManager: in-memory registry + the
+│                        per-session ring buffers (console, network)
+│                        and dialog-policy state. No Playwright imports
+│                        above this level — the instrumentation modules
+│                        (console-buffer, network-buffer, dialog-policy)
+│                        attach listeners directly to pages handed in
+│                        by the manager.
 ├── electron/            ElectronAdapter — the only module that talks
 │                        to Playwright. Keeps everything else
-│                        driver-agnostic.
+│                        driver-agnostic. Hosts the CDP-backed a11y
+│                        snapshot pipeline.
 ├── tools/               Per-category handlers (lifecycle, windows,
-│                        renderer, main) + buildToolRegistry().
+│                        renderer, main, console, network, dialogs,
+│                        tracing) + buildToolRegistry().
 ├── server/              createElectronMcpServer wires the pieces
 │                        together. index.ts is the stdio binary.
 └── utils/               allowlist globs, config from env, ids,
                          withTimeout, Zod -> JSON Schema.
 
-tests/                   Vitest suites for pure-logic modules.
+tests/                   Vitest suites for pure-logic modules + stdio
+                         smoke drivers (sprint{1,2,3}-smoke.ts) and
+                         chained-flow drivers (plan-chat-flow.ts,
+                         chat-compare-flow.ts, sprint{2,3}-flow.ts,
+                         ui-audit-driver-v2.ts).
 docs/                    architecture, tools, session-model, security,
                          samples, plans.
 examples/                MCP request samples + end-to-end workflows.
@@ -215,8 +225,14 @@ Stable codes today: `validation_error`, `launch_error`,
 - Fake objects for `SessionManager` tests are fine — they stand in
   for `ElectronApplication` because the manager only calls a
   narrow event-emitter surface.
-- **21-test baseline** — don't regress it. Adding a handler with
-  new validation usually means +1 schema test.
+- **49-test baseline** — don't regress it. Adding a handler with
+  new validation usually means +1 schema test. Covers schema defaults,
+  allowlist globs, error serialization, session manager, and the
+  console-buffer ring-eviction path. Three **smoke** suites
+  (`tests/sprint{1,2,3}-smoke.ts`) + three **flow** suites
+  (`plan-chat-flow`, `chat-compare-flow`, `sprint2-flow`,
+  `sprint3-flow`) drive a real Electron binary and assert state
+  transitions; these are not part of vitest, run them manually.
 
 ## Security
 
@@ -265,9 +281,13 @@ Stable codes today: `validation_error`, `launch_error`,
 - Adding `zod-to-json-schema` back. Zod 4's native
   `z.toJSONSchema` is our emitter now.
 - `--force` / `--no-verify` / `-i` on git commands.
-- Half-built abstractions for stretch-goal features (HTTP
-  transport, tracing, DOM snapshot, IPC hooks). They live on the
-  follow-up list in the plan doc, not in this codebase.
+- Half-built abstractions for stretch-goal features. Current follow-up
+  list (not yet landed): HTTP transport (stdio-only today), IPC bridge
+  for main↔renderer message testing, BrowserWindow controls (bounds/
+  minimize/maximize/setKiosk), locator-style input unions for
+  click/fill/hover. Tracing, a11y snapshots, network + console tails,
+  and event-driven new-window waits all shipped; see the README tool
+  table for the full surface.
 - Long multi-paragraph docstrings. One-line module header if the
   context earns it; otherwise nothing.
 

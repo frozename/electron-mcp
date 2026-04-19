@@ -17,8 +17,14 @@ Built for multi-agent orchestration systems, so:
 ## Features
 
 - Launch and manage multiple Electron sessions in parallel
-- Window discovery by index, URL pattern, or title
-- DOM interaction: click, fill, evaluate, screenshot
+- Window discovery by index, URL pattern, or title — plus event-driven
+  `wait_for_new_window` for modals / popups
+- DOM interaction: click, fill, hover, press (keyboard shortcuts),
+  select_option, wait_for_selector
+- Observability: accessibility-tree snapshots, per-session console and
+  network ring buffers, Playwright `.zip` tracing for post-mortem
+- Dialog policies: auto-accept / dismiss alert·confirm·prompt across
+  current and future windows
 - Main-process evaluation (gated behind an env flag)
 - Executable allowlist, per-call timeouts, max-concurrent-session cap
 - Structured JSON logging to `stderr`
@@ -87,20 +93,34 @@ node dist/server/index.js
 
 ## Tools
 
-| Category  | Tool                         | Purpose                                      |
-| --------- | ---------------------------- | -------------------------------------------- |
-| Lifecycle | `electron_launch`            | Launch an Electron app; returns a session id |
-| Lifecycle | `electron_close`             | Close a session (optional `force: true`)     |
-| Lifecycle | `electron_restart`           | Close + relaunch preserving args             |
-| Lifecycle | `electron_list_sessions`     | Enumerate active sessions                    |
-| Windows   | `electron_list_windows`      | List windows for a session                   |
-| Windows   | `electron_focus_window`      | Bring a window to front                      |
-| Windows   | `electron_wait_for_window`   | Wait for a URL/title/index predicate         |
-| Renderer  | `electron_click`             | Click an element                             |
-| Renderer  | `electron_fill`              | Fill an input                                |
-| Renderer  | `electron_evaluate_renderer` | Evaluate JS in the renderer                  |
-| Renderer  | `electron_screenshot`        | Capture a PNG/JPEG of a window               |
-| Main      | `electron_evaluate_main`     | Evaluate JS in the main process (opt-in)     |
+23 tools across 6 categories. All handlers return a structured `{ ok,
+sessionId, … }` envelope and throw a typed `ElectronMcpError` on failure.
+
+| Category      | Tool                               | Purpose                                                        |
+| ------------- | ---------------------------------- | -------------------------------------------------------------- |
+| Lifecycle     | `electron_launch`                  | Launch an Electron app; returns a session id                   |
+| Lifecycle     | `electron_close`                   | Close a session (optional `force: true`)                       |
+| Lifecycle     | `electron_restart`                 | Close + relaunch preserving args                               |
+| Lifecycle     | `electron_list_sessions`           | Enumerate active sessions                                      |
+| Windows       | `electron_list_windows`            | List windows for a session                                     |
+| Windows       | `electron_focus_window`            | Bring a window to front                                        |
+| Windows       | `electron_wait_for_window`         | Wait for an existing URL/title/index predicate                 |
+| Windows       | `electron_wait_for_new_window`     | Resolve when the next NEW window (modal, popup) appears        |
+| Renderer      | `electron_click`                   | Click an element                                               |
+| Renderer      | `electron_fill`                    | Fill an input                                                  |
+| Renderer      | `electron_hover`                   | Hover — reveals tooltips, submenus                             |
+| Renderer      | `electron_press`                   | Keyboard shortcut (`Meta+K`, `Escape`, `Tab`, modifier combos) |
+| Renderer      | `electron_select_option`           | Pick one or more `<option>`s by value / label / index          |
+| Renderer      | `electron_wait_for_selector`       | Wait for `visible` / `hidden` / `attached` / `detached`        |
+| Renderer      | `electron_evaluate_renderer`       | Evaluate JS in the renderer                                    |
+| Renderer      | `electron_screenshot`              | Capture a PNG/JPEG of a window                                 |
+| Observability | `electron_accessibility_snapshot`  | Structured a11y tree (roles/names/values) for LLM reasoning    |
+| Observability | `electron_console_tail`            | Ring buffer of renderer console + page errors (per session)    |
+| Observability | `electron_network_tail`            | Ring buffer of HTTP requests/responses with filters            |
+| Observability | `electron_dialog_policy`           | Auto-handle alert/confirm/prompt across current + future tabs  |
+| Tracing       | `electron_trace_start`             | Start Playwright tracing for the session                       |
+| Tracing       | `electron_trace_stop`              | Stop tracing; write a `.zip` viewable in `playwright show-trace` |
+| Main          | `electron_evaluate_main`           | Evaluate JS in the main process (opt-in)                       |
 
 See [`docs/tools.md`](./docs/tools.md) for full input/output schemas.
 
