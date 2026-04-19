@@ -8,10 +8,10 @@ import {
 
 import type { ToolHandler } from './types.js';
 
-export const electronEvaluateMain: ToolHandler<
-  ElectronEvaluateMainInput,
-  EvaluateOutput
-> = async (rawInput, ctx) => {
+export const electronEvaluateMain: ToolHandler<ElectronEvaluateMainInput, EvaluateOutput> = async (
+  rawInput,
+  ctx,
+) => {
   if (!ctx.config.allowMainEvaluate) {
     throw new PermissionDeniedError(
       'Main-process evaluation is disabled. Set ELECTRON_MCP_ALLOW_MAIN_EVALUATE=true to enable.',

@@ -7,24 +7,24 @@ relax them per environment.
 
 ## Threat model
 
-* **Untrusted prompt → server**: an agent could be steered into
+- **Untrusted prompt → server**: an agent could be steered into
   launching arbitrary binaries, exfiltrating files via the renderer, or
   pivoting to network resources via `electron_evaluate_main`.
-* **Untrusted server → host**: the MCP transport is local stdio by
+- **Untrusted server → host**: the MCP transport is local stdio by
   default, but HTTP transport (when enabled) exposes the API surface.
-* **Untrusted Electron app**: a compromised app can attempt to read
+- **Untrusted Electron app**: a compromised app can attempt to read
   files via the renderer evaluator that the server exposes. The
   allowlist restricts which apps may be launched.
 
 ## Defaults
 
-| Setting                       | Default | Why                                              |
-| ----------------------------- | ------- | ------------------------------------------------ |
-| `ELECTRON_MCP_ALLOW_MAIN_EVALUATE` | `false` | Main process has full Node.js — opt-in only |
-| `ELECTRON_MCP_MAX_SESSIONS`        | `5`     | Bound resource use                          |
-| `ELECTRON_MCP_LAUNCH_TIMEOUT`      | `30000` | Prevent indefinite hangs                    |
-| `ELECTRON_MCP_ACTION_TIMEOUT`      | `15000` | Bound DOM operations                        |
-| `ELECTRON_MCP_EVALUATE_TIMEOUT`    | `10000` | Bound evaluator runtime                     |
+| Setting                            | Default | Why                                            |
+| ---------------------------------- | ------- | ---------------------------------------------- |
+| `ELECTRON_MCP_ALLOW_MAIN_EVALUATE` | `false` | Main process has full Node.js — opt-in only    |
+| `ELECTRON_MCP_MAX_SESSIONS`        | `5`     | Bound resource use                             |
+| `ELECTRON_MCP_LAUNCH_TIMEOUT`      | `30000` | Prevent indefinite hangs                       |
+| `ELECTRON_MCP_ACTION_TIMEOUT`      | `15000` | Bound DOM operations                           |
+| `ELECTRON_MCP_EVALUATE_TIMEOUT`    | `10000` | Bound evaluator runtime                        |
 | `ELECTRON_MCP_TRANSPORT`           | `stdio` | No network exposure unless explicitly opted in |
 
 ## Executable allowlist
@@ -48,8 +48,8 @@ set.
 `electron_evaluate_main` runs JavaScript with full Node.js access:
 
 ```js
-return electron.app.getPath('userData');           // safe-ish
-require('child_process').execSync('rm -rf …');     // catastrophic
+return electron.app.getPath('userData'); // safe-ish
+require('child_process').execSync('rm -rf …'); // catastrophic
 require('fs').readFileSync('/etc/passwd', 'utf8'); // exfiltration
 ```
 
@@ -77,9 +77,9 @@ evaluator inherits whatever capabilities the page itself has.
 
 ## stdio vs HTTP
 
-* **stdio (default)**: bound to the parent process. No network surface.
+- **stdio (default)**: bound to the parent process. No network surface.
   Recommended for desktop integrations (Claude Code, Codex, Cursor).
-* **HTTP**: opt in by setting `ELECTRON_MCP_TRANSPORT=http`. *Not*
+- **HTTP**: opt in by setting `ELECTRON_MCP_TRANSPORT=http`. _Not_
   implemented in this initial release — the entrypoint will refuse to
   start and exit code `2`. When implemented, bind to `127.0.0.1` and
   protect with a token; never expose to a public interface.
@@ -94,8 +94,8 @@ User-supplied content (selectors, expression bodies, fill values) is
 **not** redacted. If you need to drive flows that handle credentials,
 either:
 
-* Lower the log level to `warn` for those sessions, or
-* Write the secret server-side (e.g. via env) and reference it inside
+- Lower the log level to `warn` for those sessions, or
+- Write the secret server-side (e.g. via env) and reference it inside
   an `electron_evaluate_renderer` body so the secret stays in the app.
 
 ## Reporting issues

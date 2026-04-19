@@ -66,11 +66,7 @@ export type ElectronLaunchOutput = z.infer<typeof ElectronLaunchOutputSchema>;
 
 export const ElectronCloseInputSchema = z.object({
   sessionId: SessionIdSchema,
-  force: z
-    .boolean()
-    .optional()
-    .default(false)
-    .describe('Kill the process if graceful close fails'),
+  force: z.boolean().optional().default(false).describe('Kill the process if graceful close fails'),
 });
 export type ElectronCloseInput = z.infer<typeof ElectronCloseInputSchema>;
 
@@ -204,13 +200,7 @@ export const ElectronScreenshotInputSchema = z.object({
     .optional()
     .describe('Write screenshot to this path. If omitted, returns base64.'),
   type: z.enum(['png', 'jpeg']).optional().default('png'),
-  quality: z
-    .number()
-    .int()
-    .min(0)
-    .max(100)
-    .optional()
-    .describe('JPEG quality (ignored for PNG)'),
+  quality: z.number().int().min(0).max(100).optional().describe('JPEG quality (ignored for PNG)'),
   timeout: TimeoutSchema,
 });
 export type ElectronScreenshotInput = z.infer<typeof ElectronScreenshotInputSchema>;

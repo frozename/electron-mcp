@@ -66,12 +66,7 @@ export const electronEvaluateRenderer: ToolHandler<
   const timeoutMs = input.timeout ?? ctx.config.evaluateTimeoutMs;
   const page = await ctx.adapter.resolveWindow(session.app, input.window);
 
-  const result = await ctx.adapter.evaluateRenderer(
-    page,
-    input.expression,
-    input.arg,
-    timeoutMs,
-  );
+  const result = await ctx.adapter.evaluateRenderer(page, input.expression, input.arg, timeoutMs);
   ctx.sessions.touch(session);
 
   return EvaluateOutputSchema.parse({

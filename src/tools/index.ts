@@ -14,9 +14,19 @@ import {
   ElectronEvaluateRendererInputSchema,
 } from '../schemas/index.js';
 
-import { electronClose, electronLaunch, electronListSessions, electronRestart } from './lifecycle.js';
+import {
+  electronClose,
+  electronLaunch,
+  electronListSessions,
+  electronRestart,
+} from './lifecycle.js';
 import { electronEvaluateMain } from './main.js';
-import { electronClick, electronEvaluateRenderer, electronFill, electronScreenshot } from './renderer.js';
+import {
+  electronClick,
+  electronEvaluateRenderer,
+  electronFill,
+  electronScreenshot,
+} from './renderer.js';
 import type { ToolContext, ToolHandler } from './types.js';
 import { electronFocusWindow, electronListWindows, electronWaitForWindow } from './windows.js';
 
@@ -92,8 +102,7 @@ export function buildToolRegistry(): ToolDefinition[] {
     /* ---------------- Renderer ---------------- */
     {
       name: 'electron_click',
-      description:
-        'Click a DOM element in a renderer window using a CSS/Playwright selector.',
+      description: 'Click a DOM element in a renderer window using a CSS/Playwright selector.',
       inputSchema: zodToJsonSchema(ElectronClickInputSchema, 'ElectronClickInput'),
       handler: electronClick as unknown as ToolHandler<unknown, unknown>,
     },

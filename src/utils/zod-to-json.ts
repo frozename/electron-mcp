@@ -6,6 +6,7 @@ import { zodToJsonSchema as zodToJsonSchemaImpl } from 'zod-to-json-schema';
  * suitable for the MCP client (object-root, no top-level `$ref`).
  */
 export function zodToJsonSchema(schema: ZodTypeAny, name: string): Record<string, unknown> {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   const result = zodToJsonSchemaImpl(schema, {
     name,
     $refStrategy: 'none',

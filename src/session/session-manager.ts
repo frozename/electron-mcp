@@ -1,9 +1,6 @@
 import type { ElectronApplication } from 'playwright';
 
-import {
-  PermissionDeniedError,
-  SessionNotFoundError,
-} from '../errors/index.js';
+import { PermissionDeniedError, SessionNotFoundError } from '../errors/index.js';
 import type { Logger } from '../logging/logger.js';
 import { newSessionId } from '../utils/ids.js';
 
@@ -38,10 +35,10 @@ export class SessionManager {
    */
   register(input: CreateSessionInput): Session {
     if (this.sessions.size >= this.maxSessions) {
-      throw new PermissionDeniedError(
-        `Maximum concurrent sessions reached (${this.maxSessions})`,
-        { current: this.sessions.size, max: this.maxSessions },
-      );
+      throw new PermissionDeniedError(`Maximum concurrent sessions reached (${this.maxSessions})`, {
+        current: this.sessions.size,
+        max: this.maxSessions,
+      });
     }
     const id = newSessionId();
     const now = new Date();

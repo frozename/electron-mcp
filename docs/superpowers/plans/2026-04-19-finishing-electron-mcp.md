@@ -17,6 +17,7 @@
 All paths relative to `/Volumes/WorkSSD/repos/personal/electron-mcp-server/`.
 
 **Config / tooling**
+
 - `package.json` — deps + scripts (`dev`, `build`, `start`, `lint`, `typecheck`, `test`)
 - `tsconfig.json` — strict ESM (NodeNext)
 - `tsconfig.build.json` — production build (no sourcemaps)
@@ -24,6 +25,7 @@ All paths relative to `/Volumes/WorkSSD/repos/personal/electron-mcp-server/`.
 - `eslint.config.js` — flat config, type-aware rules
 
 **Source**
+
 - `src/errors/index.ts` — `ElectronMcpError` + subclasses + `normalizeError`
 - `src/logging/logger.ts` — JSON logger to stderr with `withTiming` helper
 - `src/utils/config.ts` — env → `ServerConfig`
@@ -39,6 +41,7 @@ All paths relative to `/Volumes/WorkSSD/repos/personal/electron-mcp-server/`.
 - `src/server/index.ts` — binary entrypoint: config + logger + transport + signals
 
 **Docs**
+
 - `docs/architecture.md`
 - `docs/tools.md`
 - `docs/session-model.md`
@@ -105,30 +108,36 @@ All paths relative to `/Volumes/WorkSSD/repos/personal/electron-mcp-server/`.
 ## Task 1 — Install dependencies
 
 **Files:**
+
 - Modify: none (runtime install only)
 
 - [ ] **Step 1: Install dependencies with npm**
 
 Run:
+
 ```bash
 cd /Volumes/WorkSSD/repos/personal/electron-mcp-server
 npm install
 ```
+
 Expected: completes without errors. `node_modules/` and `package-lock.json` appear.
 
 If the environment prefers Bun:
+
 ```bash
 bun install
 ```
+
 Both are supported by the project.
 
 - [ ] **Step 2: Verify Playwright browsers are not strictly required**
 
-Note: Electron automation only needs the `playwright` npm package, *not* Playwright browsers. Do **NOT** run `npx playwright install` unless you also plan to test the `unified browser+electron layer` stretch goal. Confirm `node_modules/playwright/lib/server/electron` exists:
+Note: Electron automation only needs the `playwright` npm package, _not_ Playwright browsers. Do **NOT** run `npx playwright install` unless you also plan to test the `unified browser+electron layer` stretch goal. Confirm `node_modules/playwright/lib/server/electron` exists:
 
 ```bash
 ls node_modules/playwright/lib/server/electron | head -5
 ```
+
 Expected: directory contains `electron.js` or similar.
 
 ---
@@ -142,6 +151,7 @@ Expected: directory contains `electron.js` or similar.
 ```bash
 npm run typecheck
 ```
+
 Expected: zero errors. All the "cannot find module 'zod' / 'playwright'" warnings from the LSP before installing deps will be gone.
 
 - [ ] **Step 2: Triage any remaining errors**
@@ -151,10 +161,13 @@ If typecheck fails, the likely suspects are:
 1. **`CallToolResult` import in `src/server/mcp-server.ts`**
 
    If the SDK version does not export `CallToolResult`, inspect:
+
    ```bash
    grep -r "export.*CallTool" node_modules/@modelcontextprotocol/sdk/dist/esm/types.d.ts | head
    ```
+
    If the type is named differently, update the import:
+
    ```typescript
    // src/server/mcp-server.ts line 4-6
    import {
@@ -163,7 +176,9 @@ If typecheck fails, the likely suspects are:
      type CallToolResult, // <-- rename if SDK uses different symbol
    } from '@modelcontextprotocol/sdk/types.js';
    ```
+
    If the SDK has no exported result type, replace uses of `CallToolResult` with an inline type:
+
    ```typescript
    type CallToolResult = {
      content: Array<{ type: 'text'; text: string }>;
@@ -174,6 +189,7 @@ If typecheck fails, the likely suspects are:
 2. **Option builder types in `src/electron/electron-adapter.ts`**
 
    Lines like `const clickOptions: Parameters<Page['click']>[1] = { … };` may infer `unknown` because `Page['click']` has overloads. If that's the case, replace with explicit object types:
+
    ```typescript
    // src/electron/electron-adapter.ts click() method
    const clickOptions: {
@@ -193,11 +209,13 @@ If typecheck fails, the likely suspects are:
    }
    await win.click(selector, clickOptions);
    ```
+
    Apply the same pattern to `screenshot` / `launch` option builders if they complain.
 
 3. **`app.off('window', onWindow)` in `waitForWindow`**
 
    Playwright's `ElectronApplication` uses typed event emitter overloads. If TS complains, cast the handler:
+
    ```typescript
    app.on('window', onWindow as (page: import('playwright').Page) => void);
    app.off('window', onWindow as (page: import('playwright').Page) => void);
@@ -212,11 +230,13 @@ If typecheck fails, the likely suspects are:
 ```bash
 npm run typecheck
 ```
+
 Expected: zero errors.
 
 - [ ] **Step 4: Commit typecheck fixes (if any)**
 
 Only if changes were made. Stage only the edited source files (never `node_modules`, `package-lock.json`, `dist/`):
+
 ```bash
 git add src/
 git commit -m "fix(types): resolve typecheck errors after dep install"
@@ -235,6 +255,7 @@ Skip this commit if the tree is clean.
 ```bash
 npm run lint
 ```
+
 Expected: zero errors. Warnings are acceptable but should be triaged.
 
 - [ ] **Step 2: Auto-fix anything fixable**
@@ -247,11 +268,14 @@ npm run format
 - [ ] **Step 3: Address remaining lint errors manually**
 
 Likely culprits:
+
 - `@typescript-eslint/no-floating-promises` on signal handlers in `src/server/index.ts`. These are intentionally wrapped in `void onExit(…)` and `.catch(…)` — no action needed.
 - `@typescript-eslint/no-explicit-any` warnings in `src/tools/index.ts` where handlers are cast. Suppress with a file-scoped comment if warranted:
+
   ```typescript
   /* eslint-disable @typescript-eslint/no-explicit-any */
   ```
+
   Only use this if there is no cleaner cast possible.
 
 - [ ] **Step 4: Rerun lint + format check**
@@ -259,6 +283,7 @@ Likely culprits:
 ```bash
 npm run lint && npm run format:check
 ```
+
 Expected: both pass with exit code 0.
 
 - [ ] **Step 5: Commit lint/format fixes (if any)**
@@ -275,6 +300,7 @@ Skip if clean.
 ## Task 4 — Write README.md
 
 **Files:**
+
 - Create: `/Volumes/WorkSSD/repos/personal/electron-mcp-server/README.md`
 
 - [ ] **Step 1: Create `README.md` with the content below**
@@ -369,20 +395,20 @@ node dist/server/index.js
 
 ## Tools
 
-| Category  | Tool                           | Purpose                                        |
-| --------- | ------------------------------ | ---------------------------------------------- |
-| Lifecycle | `electron_launch`              | Launch an Electron app; returns a session id  |
-| Lifecycle | `electron_close`               | Close a session (optional `force: true`)      |
-| Lifecycle | `electron_restart`             | Close + relaunch preserving args              |
-| Lifecycle | `electron_list_sessions`       | Enumerate active sessions                     |
-| Windows   | `electron_list_windows`        | List windows for a session                    |
-| Windows   | `electron_focus_window`        | Bring a window to front                       |
-| Windows   | `electron_wait_for_window`     | Wait for a URL/title/index predicate          |
-| Renderer  | `electron_click`               | Click an element                              |
-| Renderer  | `electron_fill`                | Fill an input                                 |
-| Renderer  | `electron_evaluate_renderer`   | Evaluate JS in the renderer                   |
-| Renderer  | `electron_screenshot`          | Capture a PNG/JPEG of a window                |
-| Main      | `electron_evaluate_main`       | Evaluate JS in the main process (opt-in)      |
+| Category  | Tool                         | Purpose                                      |
+| --------- | ---------------------------- | -------------------------------------------- |
+| Lifecycle | `electron_launch`            | Launch an Electron app; returns a session id |
+| Lifecycle | `electron_close`             | Close a session (optional `force: true`)     |
+| Lifecycle | `electron_restart`           | Close + relaunch preserving args             |
+| Lifecycle | `electron_list_sessions`     | Enumerate active sessions                    |
+| Windows   | `electron_list_windows`      | List windows for a session                   |
+| Windows   | `electron_focus_window`      | Bring a window to front                      |
+| Windows   | `electron_wait_for_window`   | Wait for a URL/title/index predicate         |
+| Renderer  | `electron_click`             | Click an element                             |
+| Renderer  | `electron_fill`              | Fill an input                                |
+| Renderer  | `electron_evaluate_renderer` | Evaluate JS in the renderer                  |
+| Renderer  | `electron_screenshot`        | Capture a PNG/JPEG of a window               |
+| Main      | `electron_evaluate_main`     | Evaluate JS in the main process (opt-in)     |
 
 See [`docs/tools.md`](./docs/tools.md) for full input/output schemas.
 
@@ -396,29 +422,29 @@ See [`docs/tools.md`](./docs/tools.md) for full input/output schemas.
 
 ## Project scripts
 
-| Command                | What it does                             |
-| ---------------------- | ---------------------------------------- |
-| `npm run dev`          | Run the server with `tsx watch`          |
-| `npm run build`        | Emit `dist/` via the build tsconfig      |
-| `npm run start`        | Run the compiled `dist/server/index.js`  |
-| `npm run lint`         | ESLint over `src/**/*.ts`                |
-| `npm run typecheck`    | `tsc --noEmit`                           |
-| `npm run test`         | Vitest (unit tests, if present)          |
-| `npm run format`       | Prettier over source and docs            |
+| Command             | What it does                            |
+| ------------------- | --------------------------------------- |
+| `npm run dev`       | Run the server with `tsx watch`         |
+| `npm run build`     | Emit `dist/` via the build tsconfig     |
+| `npm run start`     | Run the compiled `dist/server/index.js` |
+| `npm run lint`      | ESLint over `src/**/*.ts`               |
+| `npm run typecheck` | `tsc --noEmit`                          |
+| `npm run test`      | Vitest (unit tests, if present)         |
+| `npm run format`    | Prettier over source and docs           |
 
 ## Environment variables
 
-| Variable                               | Default        | Meaning                                                   |
-| -------------------------------------- | -------------- | --------------------------------------------------------- |
-| `ELECTRON_MCP_LOG_LEVEL`               | `info`         | `trace` / `debug` / `info` / `warn` / `error` / `fatal`   |
-| `ELECTRON_MCP_MAX_SESSIONS`            | `5`            | Hard cap on concurrent sessions                           |
-| `ELECTRON_MCP_LAUNCH_TIMEOUT`          | `30000`        | Default launch timeout (ms)                               |
-| `ELECTRON_MCP_ACTION_TIMEOUT`          | `15000`        | Default DOM action timeout (ms)                           |
-| `ELECTRON_MCP_EVALUATE_TIMEOUT`        | `10000`        | Default evaluate timeout (ms)                             |
-| `ELECTRON_MCP_EXECUTABLE_ALLOWLIST`    | *(empty)*      | Comma-separated globs; empty = no restriction             |
-| `ELECTRON_MCP_ALLOW_MAIN_EVALUATE`     | `false`        | Gate on `electron_evaluate_main`                          |
-| `ELECTRON_MCP_SCREENSHOT_DIR`          | `./screenshots` | Output directory for screenshots                         |
-| `ELECTRON_MCP_TRANSPORT`               | `stdio`        | `stdio` (only option today)                               |
+| Variable                            | Default         | Meaning                                                 |
+| ----------------------------------- | --------------- | ------------------------------------------------------- |
+| `ELECTRON_MCP_LOG_LEVEL`            | `info`          | `trace` / `debug` / `info` / `warn` / `error` / `fatal` |
+| `ELECTRON_MCP_MAX_SESSIONS`         | `5`             | Hard cap on concurrent sessions                         |
+| `ELECTRON_MCP_LAUNCH_TIMEOUT`       | `30000`         | Default launch timeout (ms)                             |
+| `ELECTRON_MCP_ACTION_TIMEOUT`       | `15000`         | Default DOM action timeout (ms)                         |
+| `ELECTRON_MCP_EVALUATE_TIMEOUT`     | `10000`         | Default evaluate timeout (ms)                           |
+| `ELECTRON_MCP_EXECUTABLE_ALLOWLIST` | _(empty)_       | Comma-separated globs; empty = no restriction           |
+| `ELECTRON_MCP_ALLOW_MAIN_EVALUATE`  | `false`         | Gate on `electron_evaluate_main`                        |
+| `ELECTRON_MCP_SCREENSHOT_DIR`       | `./screenshots` | Output directory for screenshots                        |
+| `ELECTRON_MCP_TRANSPORT`            | `stdio`         | `stdio` (only option today)                             |
 
 ## Error envelope
 
@@ -454,6 +480,7 @@ git commit -m "docs: add README"
 ## Task 5 — Add LICENSE
 
 **Files:**
+
 - Create: `/Volumes/WorkSSD/repos/personal/electron-mcp-server/LICENSE`
 
 - [ ] **Step 1: Write the MIT license**
@@ -494,6 +521,7 @@ git commit -m "docs: add MIT license"
 ## Task 6 — Write example MCP requests
 
 **Files:**
+
 - Create: `/Volumes/WorkSSD/repos/personal/electron-mcp-server/examples/README.md`
 - Create: `examples/requests/01-list-tools.json` through `12-close.json`
 
@@ -530,20 +558,20 @@ invoke any tool by filling in the form.
 
 ## Files
 
-| File                          | Purpose                                 |
-| ----------------------------- | --------------------------------------- |
-| `01-list-tools.json`          | Discover every tool and its schema      |
-| `02-launch.json`              | Launch an Electron app                  |
-| `03-list-sessions.json`       | Enumerate running sessions              |
-| `04-list-windows.json`        | List windows for a session              |
-| `05-wait-for-window.json`     | Block until a URL-matching window opens |
-| `06-click.json`               | Click `#submit`                         |
-| `07-fill.json`                | Fill `#email`                           |
-| `08-evaluate-renderer.json`   | Count `.row` elements                   |
-| `09-screenshot.json`          | PNG screenshot to disk                  |
-| `10-evaluate-main.json`       | Read `app.getPath('userData')`          |
-| `11-restart.json`             | Kill and relaunch a session             |
-| `12-close.json`               | Close a session                         |
+| File                        | Purpose                                 |
+| --------------------------- | --------------------------------------- |
+| `01-list-tools.json`        | Discover every tool and its schema      |
+| `02-launch.json`            | Launch an Electron app                  |
+| `03-list-sessions.json`     | Enumerate running sessions              |
+| `04-list-windows.json`      | List windows for a session              |
+| `05-wait-for-window.json`   | Block until a URL-matching window opens |
+| `06-click.json`             | Click `#submit`                         |
+| `07-fill.json`              | Fill `#email`                           |
+| `08-evaluate-renderer.json` | Count `.row` elements                   |
+| `09-screenshot.json`        | PNG screenshot to disk                  |
+| `10-evaluate-main.json`     | Read `app.getPath('userData')`          |
+| `11-restart.json`           | Kill and relaunch a session             |
+| `12-close.json`             | Close a session                         |
 
 Replace `REPLACE_WITH_SESSION_ID` in files 3–12 with the id returned by
 `02-launch.json`. Replace `/path/to/your/app` with a real executable
@@ -764,6 +792,7 @@ git commit -m "docs(examples): add MCP request samples for every tool"
 ## Task 7 — Write the end-to-end workflow example
 
 **Files:**
+
 - Create: `examples/workflows/login-and-screenshot.md`
 
 - [ ] **Step 1: Create the workflow document**
@@ -936,7 +965,11 @@ If a window takes too long to appear, the wait step fails with:
 ```json
 {
   "ok": false,
-  "error": { "code": "window_not_found", "message": "No window matching: url~=/dashboard", "details": { "windowRef": "url~=/dashboard" } }
+  "error": {
+    "code": "window_not_found",
+    "message": "No window matching: url~=/dashboard",
+    "details": { "windowRef": "url~=/dashboard" }
+  }
 }
 ```
 
@@ -956,6 +989,7 @@ git commit -m "docs(examples): add login + screenshot end-to-end workflow"
 ## Task 8 — Build the project
 
 **Files:**
+
 - Output: `dist/` tree
 
 - [ ] **Step 1: Remove stale build output (if any)**
@@ -969,6 +1003,7 @@ rm -rf dist
 ```bash
 npm run build
 ```
+
 Expected: exits 0, emits `dist/server/index.js`, `dist/server/mcp-server.js`, and trees for every subdirectory in `src/`.
 
 - [ ] **Step 3: Verify the binary is executable-ready**
@@ -976,6 +1011,7 @@ Expected: exits 0, emits `dist/server/index.js`, `dist/server/mcp-server.js`, an
 ```bash
 node --input-type=module -e "import('./dist/server/mcp-server.js').then(m => console.log(Object.keys(m)))"
 ```
+
 Expected output includes `createElectronMcpServer`.
 
 - [ ] **Step 4: Verify the shebang on the entrypoint**
@@ -983,6 +1019,7 @@ Expected output includes `createElectronMcpServer`.
 ```bash
 head -1 dist/server/index.js
 ```
+
 Expected: `#!/usr/bin/env node`.
 
 If missing, confirm `src/server/index.ts` line 1 is `#!/usr/bin/env node`. TSC preserves the shebang line.
@@ -1005,7 +1042,9 @@ chmod +x dist/server/index.js
 cd /Volumes/WorkSSD/repos/personal/electron-mcp-server
 node dist/server/index.js
 ```
+
 Expected:
+
 - stderr shows `{"time":"…","level":"info","msg":"electron-mcp starting", …}` and then `{"…","msg":"electron-mcp ready","transport":"stdio"}`.
 - stdout is silent (MCP framing waits for input).
 - the process stays alive.
@@ -1099,6 +1138,7 @@ If you captured useful stderr JSON during the smoke test, drop it into
 ## Task 10 — (Optional) Unit tests
 
 **Files:**
+
 - Create: `tests/allowlist.test.ts`
 - Create: `tests/errors.test.ts`
 - Create: `tests/session-manager.test.ts`
@@ -1121,30 +1161,23 @@ describe('matchesAllowlist', () => {
   });
 
   test('exact path matches', () => {
-    expect(
-      matchesAllowlist('/usr/local/bin/electron', ['/usr/local/bin/electron']),
-    ).toBe(true);
+    expect(matchesAllowlist('/usr/local/bin/electron', ['/usr/local/bin/electron'])).toBe(true);
   });
 
   test('star glob matches within a segment', () => {
-    expect(
-      matchesAllowlist('/usr/local/bin/electron-1.2.3', ['/usr/local/bin/electron-*']),
-    ).toBe(true);
+    expect(matchesAllowlist('/usr/local/bin/electron-1.2.3', ['/usr/local/bin/electron-*'])).toBe(
+      true,
+    );
   });
 
   test('double-star glob crosses segments', () => {
     expect(
-      matchesAllowlist(
-        '/Applications/MyApp.app/Contents/MacOS/MyApp',
-        ['/Applications/*.app/**'],
-      ),
+      matchesAllowlist('/Applications/MyApp.app/Contents/MacOS/MyApp', ['/Applications/*.app/**']),
     ).toBe(true);
   });
 
   test('non-matching path is rejected', () => {
-    expect(
-      matchesAllowlist('/opt/not-allowed/bin/electron', ['/usr/local/bin/*']),
-    ).toBe(false);
+    expect(matchesAllowlist('/opt/not-allowed/bin/electron', ['/usr/local/bin/*'])).toBe(false);
   });
 });
 ```
@@ -1342,6 +1375,7 @@ describe('ElectronWaitForWindowInputSchema', () => {
 The base `tsconfig.json` excludes `**/*.test.ts` so the build doesn't pull them in. Vitest uses its own transpiler at runtime, so we don't need to change `tsconfig.json` at all — Vitest will compile `.test.ts` files itself. If you want IDE-level typechecking for tests, add a `tsconfig.test.json`:
 
 File: `tsconfig.test.json`
+
 ```json
 {
   "extends": "./tsconfig.json",
@@ -1361,6 +1395,7 @@ No change to the default `typecheck` script is required — skipping this step i
 ```bash
 npm run test
 ```
+
 Expected: all tests pass, exit 0.
 
 - [ ] **Step 7: Run typecheck again**
@@ -1368,6 +1403,7 @@ Expected: all tests pass, exit 0.
 ```bash
 npm run typecheck
 ```
+
 Expected: clean.
 
 - [ ] **Step 8: Commit**
@@ -1434,7 +1470,7 @@ The plan is complete when:
    `{"ok":true,"sessionId":…}` and `electron_close` cleans up.
 9. `README.md`, `examples/README.md`, and `examples/workflows/login-and-screenshot.md`
    all exist.
-10. *(If Task 10 was done)* `npm run test` passes.
+10. _(If Task 10 was done)_ `npm run test` passes.
 
 ---
 
@@ -1462,7 +1498,7 @@ The plan is complete when:
   Avoid reflection / decorator-based registration.
 - **No abstractions for hypothetical features.** The spec mentions HTTP
   transport, tracing, DOM snapshots, IPC hooks as stretch goals. They
-  are intentionally *not* scaffolded — introducing an abstraction
+  are intentionally _not_ scaffolded — introducing an abstraction
   before we have two concrete implementations invariably costs more to
   maintain than it saves.
 

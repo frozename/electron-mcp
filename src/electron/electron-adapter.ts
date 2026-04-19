@@ -42,10 +42,10 @@ export class ElectronAdapter {
     const resolvedPath = path.resolve(params.executablePath);
 
     if (!matchesAllowlist(resolvedPath, this.config.executableAllowlist)) {
-      throw new PermissionDeniedError(
-        `Executable not in allowlist: ${resolvedPath}`,
-        { executablePath: resolvedPath, allowlist: this.config.executableAllowlist },
-      );
+      throw new PermissionDeniedError(`Executable not in allowlist: ${resolvedPath}`, {
+        executablePath: resolvedPath,
+        allowlist: this.config.executableAllowlist,
+      });
     }
 
     try {
@@ -104,10 +104,7 @@ export class ElectronAdapter {
    * Resolve a window reference (index | url substring | title substring)
    * to a Playwright `Page`. Throws `WindowNotFoundError` if unresolvable.
    */
-  async resolveWindow(
-    app: ElectronApplication,
-    ref?: number | string,
-  ): Promise<Page> {
+  async resolveWindow(app: ElectronApplication, ref?: number | string): Promise<Page> {
     const windows = app.windows();
     if (windows.length === 0) {
       throw new WindowNotFoundError(ref ?? '<default>');
@@ -179,9 +176,9 @@ export class ElectronAdapter {
     return { index, title, url, isClosed };
   }
 
-  async listWindows(app: ElectronApplication): Promise<
-    { index: number; title: string; url: string; isClosed: boolean }[]
-  > {
+  async listWindows(
+    app: ElectronApplication,
+  ): Promise<{ index: number; title: string; url: string; isClosed: boolean }[]> {
     const windows = app.windows();
     return Promise.all(windows.map((win, i) => this.describeWindow(win, i)));
   }
@@ -212,10 +209,7 @@ export class ElectronAdapter {
           try {
             const title = await win.title();
             const re = safeRegex(predicate.titlePattern);
-            if (
-              title.includes(predicate.titlePattern) ||
-              (re && re.test(title))
-            ) {
+            if (title.includes(predicate.titlePattern) || (re && re.test(title))) {
               return win;
             }
           } catch {
@@ -302,11 +296,8 @@ export class ElectronAdapter {
     const body = buildFunctionSource(expression);
     try {
       // eslint-disable-next-line @typescript-eslint/no-implied-eval
-      const result = await withTimeout(
-        win.evaluate(new Function('arg', body) as (a: unknown) => unknown, arg),
-        timeoutMs,
-        'renderer.evaluate',
-      );
+      const fn = new Function('arg', body) as (a: unknown) => unknown;
+      const result = await withTimeout(win.evaluate(fn, arg), timeoutMs, 'renderer.evaluate');
       return result;
     } catch (err) {
       throw new EvaluationError(
@@ -328,17 +319,12 @@ export class ElectronAdapter {
       // argument and our user-supplied `arg` as the second. We wrap the
       // caller-provided body so both arguments are in scope.
       // eslint-disable-next-line @typescript-eslint/no-implied-eval
-      const wrapped = new Function(
-        'electron',
-        'arg',
-        body,
-      ) as (electronMod: unknown, a: unknown) => unknown;
+      const wrapped = new Function('electron', 'arg', body) as (
+        electronMod: unknown,
+        a: unknown,
+      ) => unknown;
 
-      const result = await withTimeout(
-        app.evaluate(wrapped, arg),
-        timeoutMs,
-        'main.evaluate',
-      );
+      const result = await withTimeout(app.evaluate(wrapped, arg), timeoutMs, 'main.evaluate');
       return result;
     } catch (err) {
       throw new EvaluationError(
@@ -396,7 +382,11 @@ function safeRegex(input: string): RegExp | null {
   }
 }
 
-function describePredicate(p: { urlPattern?: string; titlePattern?: string; index?: number }): string {
+function describePredicate(p: {
+  urlPattern?: string;
+  titlePattern?: string;
+  index?: number;
+}): string {
   const parts: string[] = [];
   if (p.urlPattern) parts.push(`url~=${p.urlPattern}`);
   if (p.titlePattern) parts.push(`title~=${p.titlePattern}`);
@@ -413,7 +403,11 @@ function describePredicate(p: { urlPattern?: string; titlePattern?: string; inde
  */
 function buildFunctionSource(expression: string): string {
   const trimmed = expression.trim();
-  if (/^[\s\S]*\breturn\b/.test(trimmed) || /;\s*$/.test(trimmed) || /^\{[\s\S]*\}$/.test(trimmed)) {
+  if (
+    /^[\s\S]*\breturn\b/.test(trimmed) ||
+    /;\s*$/.test(trimmed) ||
+    /^\{[\s\S]*\}$/.test(trimmed)
+  ) {
     return trimmed;
   }
   return `return (${trimmed});`;

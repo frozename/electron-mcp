@@ -5,10 +5,10 @@ Every tool returns a JSON object. Successful calls always start with
 
 Conventions:
 
-* `sessionId` is opaque and returned by `electron_launch`.
-* `window` accepts an integer index, a URL substring/regex, or a title
+- `sessionId` is opaque and returned by `electron_launch`.
+- `window` accepts an integer index, a URL substring/regex, or a title
   substring/regex. When omitted, the first window is used.
-* `timeout` is always milliseconds. Defaults come from environment
+- `timeout` is always milliseconds. Defaults come from environment
   variables (see [`.env.example`](../.env.example)).
 
 ---
@@ -19,16 +19,16 @@ Conventions:
 
 Launch an Electron application via Playwright.
 
-| Field            | Type                | Notes                                     |
-| ---------------- | ------------------- | ----------------------------------------- |
-| `executablePath` | string (required)   | Absolute path; subject to allowlist       |
-| `args`           | string[]            | Passed to Electron                        |
-| `cwd`            | string              | Working directory                         |
-| `env`            | object              | Merged with process env                   |
-| `timeout`        | number (ms)         | Override `ELECTRON_MCP_LAUNCH_TIMEOUT`    |
-| `recordVideoDir` | string              | Forwarded to Playwright                   |
-| `colorScheme`    | `light\|dark\|no-preference` | Forwarded to Playwright          |
-| `label`          | string              | Stored with the session for listings/logs |
+| Field            | Type                         | Notes                                     |
+| ---------------- | ---------------------------- | ----------------------------------------- |
+| `executablePath` | string (required)            | Absolute path; subject to allowlist       |
+| `args`           | string[]                     | Passed to Electron                        |
+| `cwd`            | string                       | Working directory                         |
+| `env`            | object                       | Merged with process env                   |
+| `timeout`        | number (ms)                  | Override `ELECTRON_MCP_LAUNCH_TIMEOUT`    |
+| `recordVideoDir` | string                       | Forwarded to Playwright                   |
+| `colorScheme`    | `light\|dark\|no-preference` | Forwarded to Playwright                   |
+| `label`          | string                       | Stored with the session for listings/logs |
 
 Response:
 
@@ -81,9 +81,7 @@ Response:
 {
   "ok": true,
   "sessionId": "sess_…",
-  "windows": [
-    { "index": 0, "title": "App", "url": "file:///…/index.html", "isClosed": false }
-  ]
+  "windows": [{ "index": 0, "title": "App", "url": "file:///…/index.html", "isClosed": false }]
 }
 ```
 
@@ -145,8 +143,8 @@ Replace the value of an input/textarea/contenteditable.
 
 Run JavaScript inside the renderer context. The `expression` may be:
 
-* A bare expression — `document.title` (auto-wrapped in `return (...);`).
-* A function body — `const el = document.querySelector('#x'); return el?.value;`.
+- A bare expression — `document.title` (auto-wrapped in `return (...);`).
+- A function body — `const el = document.querySelector('#x'); return el?.value;`.
 
 The function receives `arg` (your serializable input) as its single
 parameter.
@@ -226,17 +224,17 @@ Every failure is shaped like:
 }
 ```
 
-| Code                | Meaning                                                            |
-| ------------------- | ------------------------------------------------------------------ |
-| `validation_error`  | Input failed Zod validation                                        |
-| `launch_error`      | Could not start the Electron process                               |
-| `session_not_found` | Unknown `sessionId`                                                |
-| `window_not_found`  | No window matched the reference / predicate                        |
-| `selector_error`    | DOM operation failed (missing element, detached, etc.)             |
-| `timeout`           | Operation exceeded its deadline                                    |
-| `evaluation_error`  | Renderer or main process evaluation threw                          |
-| `permission_denied` | Allowlist / gate refused the request                               |
-| `internal_error`    | Catch-all for unexpected failures                                  |
+| Code                | Meaning                                                |
+| ------------------- | ------------------------------------------------------ |
+| `validation_error`  | Input failed Zod validation                            |
+| `launch_error`      | Could not start the Electron process                   |
+| `session_not_found` | Unknown `sessionId`                                    |
+| `window_not_found`  | No window matched the reference / predicate            |
+| `selector_error`    | DOM operation failed (missing element, detached, etc.) |
+| `timeout`           | Operation exceeded its deadline                        |
+| `evaluation_error`  | Renderer or main process evaluation threw              |
+| `permission_denied` | Allowlist / gate refused the request                   |
+| `internal_error`    | Catch-all for unexpected failures                      |
 
 Agents should dispatch on `code` and surface `message` to humans only
 when no code-specific handling exists.

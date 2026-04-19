@@ -35,18 +35,18 @@ applications. It is built around three layers:
 
 ## Module map
 
-| Path                            | Purpose                                                  |
-| ------------------------------- | -------------------------------------------------------- |
-| `src/server/index.ts`           | Process entrypoint; signal handling, transport bootstrap |
-| `src/server/mcp-server.ts`      | Builds the MCP `Server`, dispatch, error normalization   |
-| `src/tools/index.ts`            | Tool registry — names, descriptions, JSON schemas        |
-| `src/tools/{lifecycle,windows,renderer,main}.ts` | Per-category tool handlers           |
-| `src/session/session-manager.ts`| Session lifecycle and bookkeeping                        |
-| `src/electron/electron-adapter.ts` | Playwright integration (launch / windows / DOM)       |
-| `src/schemas/index.ts`          | Zod schemas (single source of truth for tool I/O)        |
-| `src/errors/index.ts`           | Error categories + `normalizeError()`                    |
-| `src/logging/logger.ts`         | Structured JSON logger writing to `stderr`               |
-| `src/utils/*`                   | Config loading, allowlist matching, ids, timeouts        |
+| Path                                             | Purpose                                                  |
+| ------------------------------------------------ | -------------------------------------------------------- |
+| `src/server/index.ts`                            | Process entrypoint; signal handling, transport bootstrap |
+| `src/server/mcp-server.ts`                       | Builds the MCP `Server`, dispatch, error normalization   |
+| `src/tools/index.ts`                             | Tool registry — names, descriptions, JSON schemas        |
+| `src/tools/{lifecycle,windows,renderer,main}.ts` | Per-category tool handlers                               |
+| `src/session/session-manager.ts`                 | Session lifecycle and bookkeeping                        |
+| `src/electron/electron-adapter.ts`               | Playwright integration (launch / windows / DOM)          |
+| `src/schemas/index.ts`                           | Zod schemas (single source of truth for tool I/O)        |
+| `src/errors/index.ts`                            | Error categories + `normalizeError()`                    |
+| `src/logging/logger.ts`                          | Structured JSON logger writing to `stderr`               |
+| `src/utils/*`                                    | Config loading, allowlist matching, ids, timeouts        |
 
 ## Why this shape?
 
@@ -86,13 +86,13 @@ downstream.
 
 ## Concurrency & safety
 
-* All handlers are async and isolated per `sessionId`. Concurrent calls
+- All handlers are async and isolated per `sessionId`. Concurrent calls
   to different sessions execute in parallel; the same session can race
   if multiple agents target it (Playwright's per-page locks generally
   serialize the relevant DOM operations).
-* Every operation has a timeout. The default action timeout is 15s and
+- Every operation has a timeout. The default action timeout is 15s and
   is overridable per call via the `timeout` field.
-* `electron_evaluate_main` is gated behind `ELECTRON_MCP_ALLOW_MAIN_EVALUATE`
+- `electron_evaluate_main` is gated behind `ELECTRON_MCP_ALLOW_MAIN_EVALUATE`
   because main-process code has full Node.js access (filesystem, child
   processes, IPC). See [security.md](./security.md).
 

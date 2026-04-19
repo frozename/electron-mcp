@@ -7,7 +7,7 @@ import {
 import { ZodError } from 'zod';
 
 import { ElectronAdapter } from '../electron/electron-adapter.js';
-import { ElectronMcpError, ValidationError, normalizeError } from '../errors/index.js';
+import { type ElectronMcpError, ValidationError, normalizeError } from '../errors/index.js';
 import type { Logger } from '../logging/logger.js';
 import { SessionManager } from '../session/session-manager.js';
 import { buildToolRegistry, type ToolContext } from '../tools/index.js';
@@ -62,7 +62,9 @@ export function createElectronMcpServer(config: ServerConfig, logger: Logger): E
     if (!tool) {
       reqLogger.warn('tool.call.unknown');
       return errorResult(
-        new ValidationError(`Unknown tool: ${toolName}`, { available: registry.map((t) => t.name) }),
+        new ValidationError(`Unknown tool: ${toolName}`, {
+          available: registry.map((t) => t.name),
+        }),
       );
     }
 
@@ -136,6 +138,9 @@ function safeStringify(value: unknown): string {
   try {
     return JSON.stringify(value, null, 2);
   } catch {
-    return JSON.stringify({ ok: false, error: { code: 'internal_error', message: 'unserializable result' } });
+    return JSON.stringify({
+      ok: false,
+      error: { code: 'internal_error', message: 'unserializable result' },
+    });
   }
 }

@@ -104,10 +104,10 @@ export const electronClose: ToolHandler<ElectronCloseInput, ElectronCloseOutput>
   };
 };
 
-export const electronRestart: ToolHandler<
-  ElectronRestartInput,
-  ElectronLaunchOutput
-> = async (rawInput, ctx) => {
+export const electronRestart: ToolHandler<ElectronRestartInput, ElectronLaunchOutput> = async (
+  rawInput,
+  ctx,
+) => {
   const input = ElectronRestartInputSchema.parse(rawInput);
   const session = ctx.sessions.get(input.sessionId);
   const logger = ctx.logger.child({ tool: 'electron_restart', sessionId: input.sessionId });
@@ -136,7 +136,7 @@ export const electronRestart: ToolHandler<
   return electronLaunch(launchInput, ctx);
 };
 
-export const electronListSessions: ToolHandler<void, ElectronListSessionsOutput> = async (
+export const electronListSessions: ToolHandler<void, ElectronListSessionsOutput> = (
   _input,
   ctx: ToolContext,
 ) => {
@@ -145,5 +145,5 @@ export const electronListSessions: ToolHandler<void, ElectronListSessionsOutput>
     ok: true,
     sessions,
   };
-  return ElectronListSessionsOutputSchema.parse(output);
+  return Promise.resolve(ElectronListSessionsOutputSchema.parse(output));
 };
