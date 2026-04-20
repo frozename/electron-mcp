@@ -52,15 +52,24 @@ interface Args {
   execArgs: string[];
   allowlist?: string;
   timeoutMs: number;
+  env: Record<string, string>;
+  userDataDir?: string;
 }
 
 function parseArgs(argv: string[]): Args {
-  const out: Args = { execArgs: [], timeoutMs: 15_000 };
+  const out: Args = { execArgs: [], timeoutMs: 15_000, env: {} };
   for (const a of argv.slice(2)) {
     if (a.startsWith('--executable=')) out.executable = a.slice('--executable='.length);
     else if (a.startsWith('--args=')) out.execArgs = a.slice('--args='.length).split(' ').filter(Boolean);
     else if (a.startsWith('--allowlist=')) out.allowlist = a.slice('--allowlist='.length);
     else if (a.startsWith('--timeout=')) out.timeoutMs = Number.parseInt(a.slice('--timeout='.length), 10) || 15_000;
+    else if (a.startsWith('--env=')) {
+      const kv = a.slice('--env='.length);
+      const eq = kv.indexOf('=');
+      if (eq > 0) out.env[kv.slice(0, eq)] = kv.slice(eq + 1);
+    } else if (a.startsWith('--userDataDir=')) {
+      out.userDataDir = a.slice('--userDataDir='.length);
+    }
   }
   return out;
 }
@@ -262,15 +271,18 @@ async function main(): Promise<void> {
     }
 
     if (args.executable) {
+      const launchArgs: Record<string, unknown> = {
+        executablePath: args.executable,
+        args: args.execArgs,
+      };
+      if (Object.keys(args.env).length > 0) launchArgs.env = args.env;
+      if (args.userDataDir !== undefined) launchArgs.userDataDir = args.userDataDir;
       const launched = await step(
         `electron_launch ${args.executable}`,
         () =>
           client.send(
             'tools/call',
-            {
-              name: 'electron_launch',
-              arguments: { executablePath: args.executable, args: args.execArgs },
-            },
+            { name: 'electron_launch', arguments: launchArgs },
             args.timeoutMs,
           ),
       );

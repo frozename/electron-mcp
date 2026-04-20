@@ -17,6 +17,11 @@ Built for multi-agent orchestration systems, so:
 ## Features
 
 - Launch and manage multiple Electron sessions in parallel
+- Hermetic launches: auto-minted tmp `--user-data-dir` per session +
+  SingletonLock conflict detection so a stale/locked profile can't silently
+  stall startup
+- Env passthrough on `electron_launch` so callers can isolate the target
+  app from the shell (secret-shaped keys are redacted from logs)
 - Window discovery by index, URL pattern, or title — plus event-driven
   `wait_for_new_window` for modals / popups
 - DOM interaction: click, fill, hover, press (keyboard shortcuts),
@@ -90,6 +95,33 @@ node dist/server/index.js
 > "Launch `/Applications/MyApp.app/Contents/MacOS/MyApp`, wait for a
 > window matching `/login`, fill `#email` with `user@example.com`,
 > click `#submit`, then screenshot the dashboard."
+
+## Launching Electron hermetically
+
+`electron_launch` accepts three launch-isolation parameters. All are
+optional; the default behavior is the safe one.
+
+- `env: Record<string,string>` — merged with `process.env` before spawn.
+  Never mutates the inherited env or the caller's object. Secret-shaped
+  keys (anything matching `TOKEN`, `BEARER`, `SECRET`, `KEY`, `PASSWORD`,
+  `PASSWD`, `API_KEY`) are redacted to `<redacted>` in launch logs — the
+  raw values still reach the child process.
+- `userDataDir: string` — path passed via Electron's `--user-data-dir`
+  flag. If omitted, the server mints a fresh
+  `/tmp/electron-mcp-userdata-<random>` directory for the session and
+  removes it on `electron_close`. If the supplied directory already has an
+  active `SingletonLock` (symlink → alive pid), the server substitutes a
+  tmp dir and echoes the replaced path via `replacedLockedDir` in the
+  response.
+- `strictUserDataDir: boolean` (default `false`) — when true, a
+  SingletonLock conflict throws `launch_error` instead of auto-tmping.
+
+The response always includes `userDataDir` (what actually got passed to
+Electron) and `autoTmp` (true when we minted the dir). Crashes before a
+graceful close leave auto-minted dirs behind for post-mortem; only
+`electron_close` / server shutdown trigger cleanup. Windows users should
+pass an explicit `userDataDir` — the SingletonLock format differs from
+macOS/Linux and is not parsed in this release.
 
 ## Tools
 

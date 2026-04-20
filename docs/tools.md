@@ -19,16 +19,18 @@ Conventions:
 
 Launch an Electron application via Playwright.
 
-| Field            | Type                         | Notes                                     |
-| ---------------- | ---------------------------- | ----------------------------------------- |
-| `executablePath` | string (required)            | Absolute path; subject to allowlist       |
-| `args`           | string[]                     | Passed to Electron                        |
-| `cwd`            | string                       | Working directory                         |
-| `env`            | object                       | Merged with process env                   |
-| `timeout`        | number (ms)                  | Override `ELECTRON_MCP_LAUNCH_TIMEOUT`    |
-| `recordVideoDir` | string                       | Forwarded to Playwright                   |
-| `colorScheme`    | `light\|dark\|no-preference` | Forwarded to Playwright                   |
-| `label`          | string                       | Stored with the session for listings/logs |
+| Field                | Type                         | Notes                                                     |
+| -------------------- | ---------------------------- | --------------------------------------------------------- |
+| `executablePath`     | string (required)            | Absolute path; subject to allowlist                       |
+| `args`               | string[]                     | Passed to Electron                                        |
+| `cwd`                | string                       | Working directory                                         |
+| `env`                | object                       | Merged with process env (secret-shaped keys redacted in logs) |
+| `userDataDir`        | string                       | Passed via `--user-data-dir`. If omitted, an auto-tmp dir is minted. Locked dirs trigger auto-substitute unless strict. |
+| `strictUserDataDir`  | boolean (default false)      | When true, fail with `launch_error` if `userDataDir` is locked instead of auto-substituting |
+| `timeout`            | number (ms)                  | Override `ELECTRON_MCP_LAUNCH_TIMEOUT`                    |
+| `recordVideoDir`     | string                       | Forwarded to Playwright                                   |
+| `colorScheme`        | `light\|dark\|no-preference` | Forwarded to Playwright                                   |
+| `label`              | string                       | Stored with the session for listings/logs                 |
 
 Response:
 
@@ -39,11 +41,23 @@ Response:
   "label": "my-app",
   "status": "active",
   "startedAt": "2026-04-19T05:01:23.456Z",
-  "windowCount": 1
+  "windowCount": 1,
+  "userDataDir": "/tmp/electron-mcp-userdata-abc123",
+  "autoTmp": true,
+  "replacedLockedDir": "/Users/you/Library/Application Support/MyApp"
 }
 ```
 
-Errors: `permission_denied` (allowlist), `launch_error`, `timeout`.
+- `userDataDir` is always present — the actual path passed to Electron
+  (useful when the server auto-minted or substituted it).
+- `autoTmp` is true when the server created the dir and will clean it up
+  on graceful close.
+- `replacedLockedDir` appears only when the caller's `userDataDir` was
+  locked by another Electron instance and the server substituted a
+  tmp dir. Missing otherwise.
+
+Errors: `permission_denied` (allowlist), `launch_error` (includes locked
+userDataDir under strict mode), `timeout`.
 
 ### `electron_close`
 

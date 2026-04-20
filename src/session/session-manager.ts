@@ -3,6 +3,7 @@ import type { ElectronApplication } from 'playwright';
 import { PermissionDeniedError, SessionNotFoundError } from '../errors/index.js';
 import type { Logger } from '../logging/logger.js';
 import { newSessionId } from '../utils/ids.js';
+import { cleanupUserDataDir } from '../utils/user-data-dir.js';
 
 import { createConsoleBuffer, instrumentSession } from './console-buffer.js';
 import { createDialogState, instrumentSessionForDialogs } from './dialog-policy.js';
@@ -20,6 +21,8 @@ export interface CreateSessionInput {
   executablePath: string;
   args: readonly string[];
   label?: string;
+  userDataDir?: string;
+  autoTmpUserDataDir?: boolean;
 }
 
 export class SessionManager {
@@ -59,6 +62,10 @@ export class SessionManager {
       dialog: createDialogState(),
       networkBuffer: createNetworkBuffer(),
       tracingActive: false,
+      ...(input.userDataDir !== undefined ? { userDataDir: input.userDataDir } : {}),
+      ...(input.autoTmpUserDataDir !== undefined
+        ? { autoTmpUserDataDir: input.autoTmpUserDataDir }
+        : {}),
     };
     this.sessions.set(id, session);
 
@@ -118,9 +125,18 @@ export class SessionManager {
   /**
    * Remove a session from the registry. Does NOT close the app — caller
    * is responsible for invoking `app.close()` before `remove`.
+   *
+   * If the session was launched with an auto-tmp `userDataDir`, that dir
+   * is cleaned up on best-effort basis here. Crashes before remove()
+   * (e.g. the Electron process SIGKILLing) leave the dir behind — that's
+   * intentional for post-mortem inspection.
    */
   remove(sessionId: string): void {
+    const session = this.sessions.get(sessionId);
     this.sessions.delete(sessionId);
+    if (session?.autoTmpUserDataDir && session.userDataDir) {
+      cleanupUserDataDir(session.userDataDir);
+    }
   }
 
   /**
@@ -146,6 +162,9 @@ export class SessionManager {
         } finally {
           session.status = 'closed';
           this.sessions.delete(session.id);
+          if (session.autoTmpUserDataDir && session.userDataDir) {
+            cleanupUserDataDir(session.userDataDir);
+          }
         }
       }),
     );

@@ -73,15 +73,33 @@ function parseEnvelope(res: JsonRpcResponse | null): unknown {
   }
 }
 
-function parseArgs(argv: string[]): { executable: string; execArgs: string[] } {
+interface SmokeArgs {
+  executable: string;
+  execArgs: string[];
+  env: Record<string, string>;
+  userDataDir?: string;
+}
+
+function parseArgs(argv: string[]): SmokeArgs {
   let executable: string | undefined;
   let execArgs: string[] = [];
+  const env: Record<string, string> = {};
+  let userDataDir: string | undefined;
   for (const a of argv.slice(2)) {
     if (a.startsWith('--executable=')) executable = a.slice('--executable='.length);
     else if (a.startsWith('--args=')) execArgs = a.slice('--args='.length).split(' ').filter(Boolean);
+    else if (a.startsWith('--env=')) {
+      const kv = a.slice('--env='.length);
+      const eq = kv.indexOf('=');
+      if (eq > 0) env[kv.slice(0, eq)] = kv.slice(eq + 1);
+    } else if (a.startsWith('--userDataDir=')) {
+      userDataDir = a.slice('--userDataDir='.length);
+    }
   }
   if (!executable) throw new Error('--executable required');
-  return { executable, execArgs };
+  const out: SmokeArgs = { executable, execArgs, env };
+  if (userDataDir !== undefined) out.userDataDir = userDataDir;
+  return out;
 }
 
 async function main(): Promise<void> {
@@ -106,9 +124,15 @@ async function main(): Promise<void> {
     });
 
     log(`launch ${args.executable}`);
+    const launchArgs: Record<string, unknown> = {
+      executablePath: args.executable,
+      args: args.execArgs,
+    };
+    if (Object.keys(args.env).length > 0) launchArgs.env = args.env;
+    if (args.userDataDir !== undefined) launchArgs.userDataDir = args.userDataDir;
     const launched = await client.send(
       'tools/call',
-      { name: 'electron_launch', arguments: { executablePath: args.executable, args: args.execArgs } },
+      { name: 'electron_launch', arguments: launchArgs },
       60_000,
     );
     const launchEnv = parseEnvelope(launched) as { ok?: boolean; sessionId?: string };

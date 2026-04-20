@@ -47,19 +47,33 @@ interface Args {
   executable: string;
   execArgs: string[];
   allowlist?: string;
+  env: Record<string, string>;
+  userDataDir?: string;
 }
 
 function parseArgs(argv: string[]): Args {
   let executable = '';
   let execArgs: string[] = [];
   let allowlist: string | undefined;
+  const env: Record<string, string> = {};
+  let userDataDir: string | undefined;
   for (const a of argv.slice(2)) {
     if (a.startsWith('--executable=')) executable = a.slice('--executable='.length);
     else if (a.startsWith('--args=')) execArgs = a.slice('--args='.length).split(' ').filter(Boolean);
     else if (a.startsWith('--allowlist=')) allowlist = a.slice('--allowlist='.length);
+    else if (a.startsWith('--env=')) {
+      const kv = a.slice('--env='.length);
+      const eq = kv.indexOf('=');
+      if (eq > 0) env[kv.slice(0, eq)] = kv.slice(eq + 1);
+    } else if (a.startsWith('--userDataDir=')) {
+      userDataDir = a.slice('--userDataDir='.length);
+    }
   }
   if (!executable) throw new Error('--executable required');
-  return { executable, execArgs, allowlist };
+  const out: Args = { executable, execArgs, env };
+  if (allowlist !== undefined) out.allowlist = allowlist;
+  if (userDataDir !== undefined) out.userDataDir = userDataDir;
+  return out;
 }
 
 class McpClient {
@@ -154,12 +168,15 @@ async function main(): Promise<void> {
     });
 
     log(`launch ${args.executable}`);
+    const launchArgs: Record<string, unknown> = {
+      executablePath: args.executable,
+      args: args.execArgs,
+    };
+    if (Object.keys(args.env).length > 0) launchArgs.env = args.env;
+    if (args.userDataDir !== undefined) launchArgs.userDataDir = args.userDataDir;
     const launched = await client.send(
       'tools/call',
-      {
-        name: 'electron_launch',
-        arguments: { executablePath: args.executable, args: args.execArgs },
-      },
+      { name: 'electron_launch', arguments: launchArgs },
       60_000,
     );
     const env1 = parseEnvelope(launched) as { ok?: boolean; sessionId?: string };

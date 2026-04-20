@@ -40,6 +40,24 @@ export const ElectronLaunchInputSchema = z.object({
     .record(z.string(), z.string())
     .optional()
     .describe('Environment variables merged with the current process env'),
+  userDataDir: z
+    .string()
+    .optional()
+    .describe(
+      'Directory to pass via Electron\'s --user-data-dir flag. If omitted, ' +
+        'a fresh tmp dir is minted for the session and removed on close. If a ' +
+        'SingletonLock from an active process is detected, a tmp dir is ' +
+        'substituted (unless strictUserDataDir is true).',
+    ),
+  strictUserDataDir: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe(
+      'When true, fail fast with launch_error if the provided userDataDir is ' +
+        'locked by another Electron process. When false (default), substitute ' +
+        'a fresh tmp dir and echo the replaced path via replacedLockedDir.',
+    ),
   timeout: TimeoutSchema,
   recordVideoDir: z
     .string()
@@ -61,6 +79,19 @@ export const ElectronLaunchOutputSchema = z.object({
   status: z.string(),
   startedAt: z.string(),
   windowCount: z.number().int().nonnegative(),
+  userDataDir: z
+    .string()
+    .describe('Resolved --user-data-dir value used for this launch.'),
+  autoTmp: z
+    .boolean()
+    .describe('True when userDataDir was auto-minted as a tmp dir by the server.'),
+  replacedLockedDir: z
+    .string()
+    .optional()
+    .describe(
+      'Present when the caller-supplied userDataDir was locked and the server ' +
+        'substituted a tmp dir. Holds the original locked path for visibility.',
+    ),
 });
 export type ElectronLaunchOutput = z.infer<typeof ElectronLaunchOutputSchema>;
 

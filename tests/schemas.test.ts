@@ -32,6 +32,29 @@ describe('ElectronLaunchInputSchema', () => {
       ElectronLaunchInputSchema.parse({ executablePath: '/x', timeout: 999_999 }),
     ).toThrow();
   });
+
+  test('accepts env record', () => {
+    const parsed = ElectronLaunchInputSchema.parse({
+      executablePath: '/x',
+      env: { FOO: 'bar', HELLO: 'world' },
+    });
+    expect(parsed.env).toEqual({ FOO: 'bar', HELLO: 'world' });
+  });
+
+  test('accepts userDataDir + strictUserDataDir', () => {
+    const parsed = ElectronLaunchInputSchema.parse({
+      executablePath: '/x',
+      userDataDir: '/tmp/my-udd',
+      strictUserDataDir: true,
+    });
+    expect(parsed.userDataDir).toBe('/tmp/my-udd');
+    expect(parsed.strictUserDataDir).toBe(true);
+  });
+
+  test('strictUserDataDir defaults to false', () => {
+    const parsed = ElectronLaunchInputSchema.parse({ executablePath: '/x' });
+    expect(parsed.strictUserDataDir).toBe(false);
+  });
 });
 
 describe('ElectronClickInputSchema', () => {

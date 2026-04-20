@@ -22,6 +22,13 @@ export interface LaunchParams {
   args?: readonly string[];
   cwd?: string;
   env?: Record<string, string>;
+  /**
+   * Directory to pass via Electron's `--user-data-dir` flag. When set, the
+   * adapter splices `--user-data-dir=<dir>` onto the supplied `args` iff
+   * the caller hasn't already supplied one (caller-supplied wins so nobody
+   * gets blindsided).
+   */
+  userDataDir?: string;
   timeoutMs: number;
   recordVideoDir?: string;
   colorScheme?: 'light' | 'dark' | 'no-preference';
@@ -63,15 +70,18 @@ export class ElectronAdapter {
     });
 
     try {
+      const composedArgs = composeLaunchArgs(params.args, params.userDataDir);
       const launchOptions: Parameters<typeof electron.launch>[0] = {
         executablePath: resolvedPath,
-        args: [...(params.args ?? [])],
+        args: composedArgs,
         timeout: params.timeoutMs,
       };
       if (params.cwd) {
         launchOptions.cwd = params.cwd;
       }
       if (params.env) {
+        // Build a new record; never mutate the caller's object or the
+        // inherited `process.env`. Caller entries override inherited ones.
         launchOptions.env = { ...process.env, ...params.env } as Record<string, string>;
       }
       if (params.recordVideoDir) {
@@ -630,6 +640,25 @@ function safeRegex(input: string): RegExp | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Compose the Electron CLI args, splicing in `--user-data-dir=<dir>` when
+ * the caller provided one. If the caller has *already* supplied a
+ * `--user-data-dir=...` arg we leave them alone — the explicit flag wins.
+ */
+export function composeLaunchArgs(
+  baseArgs: readonly string[] | undefined,
+  userDataDir: string | undefined,
+): string[] {
+  const out = [...(baseArgs ?? [])];
+  if (!userDataDir) return out;
+  const hasExplicit = out.some(
+    (a) => a === '--user-data-dir' || a.startsWith('--user-data-dir='),
+  );
+  if (hasExplicit) return out;
+  out.push(`--user-data-dir=${userDataDir}`);
+  return out;
 }
 
 interface AXSnapshotValue { value?: unknown; type?: string }

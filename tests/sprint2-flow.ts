@@ -125,15 +125,33 @@ function findByName(
   return null;
 }
 
-function parseArgs(argv: string[]): { executable: string; execArgs: string[] } {
+interface DriverArgs {
+  executable: string;
+  execArgs: string[];
+  env: Record<string, string>;
+  userDataDir?: string;
+}
+
+function parseArgs(argv: string[]): DriverArgs {
   let executable: string | undefined;
   let execArgs: string[] = [];
+  const env: Record<string, string> = {};
+  let userDataDir: string | undefined;
   for (const a of argv.slice(2)) {
     if (a.startsWith('--executable=')) executable = a.slice('--executable='.length);
     else if (a.startsWith('--args=')) execArgs = a.slice('--args='.length).split(' ').filter(Boolean);
+    else if (a.startsWith('--env=')) {
+      const kv = a.slice('--env='.length);
+      const eq = kv.indexOf('=');
+      if (eq > 0) env[kv.slice(0, eq)] = kv.slice(eq + 1);
+    } else if (a.startsWith('--userDataDir=')) {
+      userDataDir = a.slice('--userDataDir='.length);
+    }
   }
   if (!executable) throw new Error('--executable required');
-  return { executable, execArgs };
+  const out: DriverArgs = { executable, execArgs, env };
+  if (userDataDir !== undefined) out.userDataDir = userDataDir;
+  return out;
 }
 
 function check(label: string, cond: boolean, detail = ''): void {
@@ -154,11 +172,15 @@ async function main(): Promise<void> {
 
   try {
     await client.initialize();
-    const launch = (await client.call(
-      'electron_launch',
-      { executablePath: args.executable, args: args.execArgs },
-      60_000,
-    )) as { sessionId?: string };
+    const launchArgs: Record<string, unknown> = {
+      executablePath: args.executable,
+      args: args.execArgs,
+    };
+    if (Object.keys(args.env).length > 0) launchArgs.env = args.env;
+    if (args.userDataDir !== undefined) launchArgs.userDataDir = args.userDataDir;
+    const launch = (await client.call('electron_launch', launchArgs, 60_000)) as {
+      sessionId?: string;
+    };
     const sessionId = launch.sessionId;
     if (!sessionId) throw new Error('launch failed');
     await client.call('electron_wait_for_window', { sessionId, index: 0, timeoutMs: 30_000 }, 35_000);

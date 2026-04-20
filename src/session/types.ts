@@ -52,6 +52,11 @@ export interface Session {
   networkBuffer: NetworkBuffer;
   /** Tracing state — true while Playwright tracing is active. */
   tracingActive: boolean;
+  /** Resolved --user-data-dir passed to Electron at launch. */
+  userDataDir?: string;
+  /** True when `userDataDir` was auto-minted and should be removed on
+   * graceful close. Crashes leave the dir behind for post-mortem. */
+  autoTmpUserDataDir?: boolean;
 }
 
 export interface SessionSnapshot {
