@@ -26,6 +26,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:smoke:sprint1": "tsx tests/sprint1-smoke.ts --executable=$CI_ELECTRON_BIN --args=tests/fixtures/ci-app/main.js",
+    "test:smoke:sprint2": "tsx tests/sprint2-smoke.ts --executable=$CI_ELECTRON_BIN --args=tests/fixtures/ci-app/main.js",
+    "test:smoke:sprint3": "tsx tests/sprint3-smoke.ts --executable=$CI_ELECTRON_BIN --args=tests/fixtures/ci-app/main.js",
+    "test:smoke:all": "npm run test:smoke:sprint1 && npm run test:smoke:sprint2 && npm run test:smoke:sprint3",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -52,6 +56,7 @@
     "@types/pngjs": "^6.0.5",
     "@typescript-eslint/eslint-plugin": "8.58.2",
     "@typescript-eslint/parser": "8.58.2",
+    "electron": "41.2.1",
     "eslint": "10.2.1",
     "eslint-config-prettier": "10.1.8",
     "prettier": "3.8.3",

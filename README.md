@@ -168,15 +168,57 @@ See [`docs/tools.md`](./docs/tools.md) for full input/output schemas.
 
 ## Project scripts
 
-| Command             | What it does                            |
-| ------------------- | --------------------------------------- |
-| `npm run dev`       | Run the server with `tsx watch`         |
-| `npm run build`     | Emit `dist/` via the build tsconfig     |
-| `npm run start`     | Run the compiled `dist/server/index.js` |
-| `npm run lint`      | ESLint over `src/**/*.ts`               |
-| `npm run typecheck` | `tsc --noEmit`                          |
-| `npm run test`      | Vitest (unit tests, if present)         |
-| `npm run format`    | Prettier over source and docs           |
+| Command                     | What it does                                                 |
+| --------------------------- | ------------------------------------------------------------ |
+| `npm run dev`               | Run the server with `tsx watch`                              |
+| `npm run build`             | Emit `dist/` via the build tsconfig                          |
+| `npm run start`             | Run the compiled `dist/server/index.js`                      |
+| `npm run lint`              | ESLint over `src/**/*.ts`                                    |
+| `npm run typecheck`         | `tsc --noEmit`                                               |
+| `npm run test`              | Vitest (unit tests)                                          |
+| `npm run test:smoke:all`    | Run sprint 1/2/3 smokes against the CI fixture (needs `CI_ELECTRON_BIN`) |
+| `npm run test:smoke:sprint1` | Sprint 1 smoke only (wait/a11y/console)                      |
+| `npm run test:smoke:sprint2` | Sprint 2 smoke only (hover/press/select/dialog-policy)       |
+| `npm run test:smoke:sprint3` | Sprint 3 smoke only (network/trace)                          |
+| `npm run format`            | Prettier over source and docs                                |
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and every pull
+request, across `ubuntu-latest` and `macos-latest`:
+
+1. `npm ci` → `npm run typecheck` → `npm run build` → `npm test` (Vitest).
+2. `npm run test:smoke:all` — drives the three sprint smokes
+   (`tests/sprint{1,2,3}-smoke.ts`) against the bundled Electron fixture
+   at `tests/fixtures/ci-app/`. On Linux the smokes run under
+   `xvfb-run`; macOS needs no virtual display. Smoke output is uploaded
+   as an artifact when the job fails.
+
+The fixture app is a deliberately minimal Electron window with a
+primary-nav sidebar (Dashboard / Presets / Nodes / Models / Cost) plus
+per-section root containers. Add new UI affordances there when you need
+new smoke coverage — keep the smokes themselves portable.
+
+### Running smokes locally
+
+```sh
+npm ci
+npm run build
+
+# macOS
+export CI_ELECTRON_BIN="$PWD/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron"
+
+# Linux (Electron needs a display; install xvfb once):
+# sudo apt-get install -y xvfb libnss3 libatk-bridge2.0-0 libdrm2 libgbm1 libxkbcommon0 libasound2t64
+# export CI_ELECTRON_BIN="$PWD/node_modules/electron/dist/electron"
+# run via: xvfb-run -a npm run test:smoke:all
+
+npm run test:smoke:all
+```
+
+Each smoke script accepts `--executable=<path>` and `--args=<main.js>`,
+so the same scripts drive a real target app (e.g. a locally built
+product binary) in addition to the CI fixture.
 
 ## Environment variables
 

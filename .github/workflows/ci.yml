@@ -1,0 +1,75 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: build + test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Set CI_ELECTRON_BIN (macOS)
+        if: runner.os == 'macOS'
+        run: echo "CI_ELECTRON_BIN=$PWD/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron" >> "$GITHUB_ENV"
+
+      - name: Set CI_ELECTRON_BIN (Linux)
+        if: runner.os == 'Linux'
+        run: echo "CI_ELECTRON_BIN=$PWD/node_modules/electron/dist/electron" >> "$GITHUB_ENV"
+
+      - name: Install Xvfb (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libnss3 libatk-bridge2.0-0 libdrm2 libgbm1 libxkbcommon0 libasound2t64
+
+      - name: Smoke tests (Linux via xvfb-run)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a --server-args="-screen 0 1280x960x24" npm run test:smoke:all
+
+      - name: Smoke tests (macOS)
+        if: runner.os == 'macOS'
+        run: npm run test:smoke:all
+
+      - name: Upload smoke artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-artifacts-${{ matrix.os }}
+          path: |
+            /tmp/electron-mcp-sprint1
+            /tmp/electron-mcp-sprint2
+            /tmp/electron-mcp-sprint3
+          if-no-files-found: ignore
+          retention-days: 7

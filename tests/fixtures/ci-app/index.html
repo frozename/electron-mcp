@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'" />
+    <title>electron-mcp CI fixture</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        height: 100vh;
+      }
+      nav {
+        background: #1f2937;
+        color: #e5e7eb;
+        padding: 12px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      nav button {
+        background: transparent;
+        color: inherit;
+        border: 0;
+        padding: 8px 10px;
+        text-align: left;
+        font: inherit;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      nav button[aria-current='true'] {
+        background: #374151;
+      }
+      main {
+        padding: 24px;
+        overflow: auto;
+      }
+      .view {
+        display: none;
+      }
+      .view[data-active='true'] {
+        display: block;
+      }
+      h1 {
+        margin-top: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <nav aria-label="Primary">
+      <button type="button" aria-label="Dashboard" data-view="dashboard" aria-current="true">
+        Dashboard
+      </button>
+      <button type="button" aria-label="Presets" data-view="presets">Presets</button>
+      <button type="button" aria-label="Nodes" data-view="nodes">Nodes</button>
+      <button type="button" aria-label="Models" data-view="models">Models</button>
+      <button type="button" aria-label="Cost" data-view="cost">Cost</button>
+    </nav>
+
+    <main>
+      <section
+        id="dashboard-root"
+        class="view"
+        data-testid="dashboard-root"
+        data-active="true"
+        aria-labelledby="dashboard-heading"
+      >
+        <h1 id="dashboard-heading">Dashboard</h1>
+        <p>Fixture dashboard for smoke tests.</p>
+        <button type="button" id="dashboard-primary">Primary action</button>
+      </section>
+
+      <section
+        id="presets-root"
+        class="view"
+        data-testid="presets-root"
+        aria-labelledby="presets-heading"
+      >
+        <h1 id="presets-heading">Presets</h1>
+        <label for="presets-class">Class</label>
+        <select id="presets-class" name="class">
+          <option value="all">All</option>
+          <option value="reasoning">Reasoning</option>
+          <option value="coding">Coding</option>
+          <option value="vision">Vision</option>
+        </select>
+      </section>
+
+      <section id="nodes-root" class="view" data-testid="nodes-root" aria-labelledby="nodes-heading">
+        <h1 id="nodes-heading">Nodes</h1>
+        <p>No nodes registered.</p>
+      </section>
+
+      <section
+        id="models-root"
+        class="view"
+        data-testid="models-root"
+        aria-labelledby="models-heading"
+      >
+        <h1 id="models-heading">Models</h1>
+        <p>No models catalogued.</p>
+      </section>
+
+      <section id="cost-root" class="view" data-testid="cost-root" aria-labelledby="cost-heading">
+        <h1 id="cost-heading">Cost</h1>
+        <p>No cost data.</p>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        const buttons = document.querySelectorAll('nav button[data-view]');
+        const views = document.querySelectorAll('main section.view');
+        function activate(viewId) {
+          views.forEach((v) => {
+            v.dataset.active = v.id === viewId + '-root' ? 'true' : 'false';
+          });
+          buttons.forEach((b) => {
+            const match = b.dataset.view === viewId;
+            if (match) b.setAttribute('aria-current', 'true');
+            else b.removeAttribute('aria-current');
+          });
+        }
+        buttons.forEach((b) => {
+          b.addEventListener('click', () => activate(b.dataset.view));
+        });
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "name": "electron-mcp-ci-fixture",
+  "version": "0.0.0",
+  "description": "Minimal Electron app used by the sprint smoke tests in CI.",
+  "main": "main.js"
+}
