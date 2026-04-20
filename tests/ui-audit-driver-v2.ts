@@ -3,13 +3,19 @@
  * (wait_for_selector, accessibility_snapshot, console_tail) instead of
  * the hand-rolled evaluate + sleep approach in v1. Tracks per-module
  * timings so we can diff against the original.
+ *
+ * Optional pixel-regression gate: pass `--baselines=<dir>` to compare
+ * each module's post-nav screenshot against
+ * `<dir>/<module-id>.png` via the `screenshot_diff` MCP tool. Seed the
+ * baselines once with `--updateBaselines`; subsequent runs fail-hard
+ * (exit 1) when any module breaches the ratio/per-pixel threshold.
  */
 import { spawn, type ChildProcessByStdio } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import type { Readable, Writable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 const OUT_DIR = '/tmp/llamactl-ui-audit-v2';
 
@@ -43,18 +49,39 @@ const MODULES: Module[] = [
   { id: 'settings', label: 'Settings' },
 ];
 
-interface DriverArgs {
+export interface Options {
   executable: string;
   execArgs: string[];
   env: Record<string, string>;
   userDataDir?: string;
+  baselinesDir?: string;
+  updateBaselines: boolean;
+  threshold: number;
+  pixelThreshold: number;
+  diffDir?: string;
 }
 
-function parseArgs(argv: string[]): DriverArgs {
+const DEFAULT_THRESHOLD = 0.01;
+const DEFAULT_PIXEL_THRESHOLD = 0;
+
+function parseNumber(flag: string, raw: string): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) {
+    throw new Error(`${flag} requires a finite number, got: ${raw}`);
+  }
+  return n;
+}
+
+export function parseArgs(argv: string[]): Options {
   let executable: string | undefined;
   let execArgs: string[] = [];
   const env: Record<string, string> = {};
   let userDataDir: string | undefined;
+  let baselinesDir: string | undefined;
+  let updateBaselines = false;
+  let threshold = DEFAULT_THRESHOLD;
+  let pixelThreshold = DEFAULT_PIXEL_THRESHOLD;
+  let diffDir: string | undefined;
   for (const a of argv.slice(2)) {
     if (a.startsWith('--executable=')) executable = a.slice('--executable='.length);
     else if (a.startsWith('--args=')) execArgs = a.slice('--args='.length).split(' ').filter(Boolean);
@@ -64,11 +91,26 @@ function parseArgs(argv: string[]): DriverArgs {
       if (eq > 0) env[kv.slice(0, eq)] = kv.slice(eq + 1);
     } else if (a.startsWith('--userDataDir=')) {
       userDataDir = a.slice('--userDataDir='.length);
+    } else if (a.startsWith('--baselines=')) {
+      baselinesDir = a.slice('--baselines='.length);
+    } else if (a === '--updateBaselines') {
+      updateBaselines = true;
+    } else if (a.startsWith('--threshold=')) {
+      threshold = parseNumber('--threshold', a.slice('--threshold='.length));
+    } else if (a.startsWith('--pixelThreshold=')) {
+      pixelThreshold = parseNumber('--pixelThreshold', a.slice('--pixelThreshold='.length));
+    } else if (a.startsWith('--diffDir=')) {
+      diffDir = a.slice('--diffDir='.length);
     }
   }
   if (!executable) throw new Error('--executable required');
-  const out: DriverArgs = { executable, execArgs, env };
+  if (updateBaselines && !baselinesDir) {
+    throw new Error('--updateBaselines requires --baselines=<dir>');
+  }
+  const out: Options = { executable, execArgs, env, updateBaselines, threshold, pixelThreshold };
   if (userDataDir !== undefined) out.userDataDir = userDataDir;
+  if (baselinesDir !== undefined) out.baselinesDir = baselinesDir;
+  if (diffDir !== undefined) out.diffDir = diffDir;
   return out;
 }
 
@@ -161,9 +203,32 @@ function summarizeA11y(tree: A11yNode | null): {
   return { heading, buttons, roles };
 }
 
+export interface DiffReport {
+  moduleId: string;
+  baselineExists: boolean;
+  diffRatio: number;
+  thresholdBreached: boolean;
+  diffPixels: number;
+  totalPixels: number;
+  diffPath?: string;
+  wroteBaseline?: string;
+  currentPath?: string;
+  message?: string;
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv);
   mkdirSync(OUT_DIR, { recursive: true });
+  // In update mode the baselines dir may not exist yet — that's the seed
+  // case. In diff mode we intentionally DON'T create it so a missing dir
+  // surfaces as explicit per-module "baseline missing" failures rather
+  // than being silently auto-created and then always failing.
+  if (args.updateBaselines && args.baselinesDir) {
+    mkdirSync(args.baselinesDir, { recursive: true });
+  }
+  if (args.diffDir) {
+    mkdirSync(args.diffDir, { recursive: true });
+  }
 
   const here = dirname(fileURLToPath(import.meta.url));
   const serverScript = resolve(here, '..', 'dist', 'server', 'index.js');
@@ -256,6 +321,7 @@ async function main(): Promise<void> {
       screenshotPath: string;
     }
     const results: Result[] = [];
+    const diffs: DiffReport[] = [];
     let priorConsoleSize = 0;
     let priorNetworkSize = 0;
 
@@ -300,6 +366,52 @@ async function main(): Promise<void> {
         },
         10_000,
       );
+
+      // Pixel-regression gate: caller opts in with --baselines=<dir>.
+      // Preserve current behavior (no extra MCP calls) when the flag is
+      // unset.
+      if (args.baselinesDir) {
+        const baselinePath = join(args.baselinesDir, `${mod.id}.png`);
+        const diffPath = args.diffDir ? join(args.diffDir, `${mod.id}.png`) : undefined;
+        const diffArgs: Record<string, unknown> = {
+          sessionId,
+          baselinePath,
+          updateBaseline: args.updateBaselines,
+          threshold: args.threshold,
+          pixelThreshold: args.pixelThreshold,
+        };
+        if (diffPath !== undefined) diffArgs.diffPath = diffPath;
+        const diffRes = await client.send(
+          'tools/call',
+          { name: 'screenshot_diff', arguments: diffArgs },
+          30_000,
+        );
+        const diffEnv = parseEnvelope(diffRes) as {
+          ok?: boolean;
+          baselineExists?: boolean;
+          diffPixels?: number;
+          totalPixels?: number;
+          diffRatio?: number;
+          thresholdBreached?: boolean;
+          wroteBaseline?: string;
+          wroteDiff?: string;
+          currentPath?: string;
+          message?: string;
+        } | null;
+        const entry: DiffReport = {
+          moduleId: mod.id,
+          baselineExists: diffEnv?.baselineExists === true,
+          diffRatio: diffEnv?.diffRatio ?? 0,
+          thresholdBreached: diffEnv?.thresholdBreached === true,
+          diffPixels: diffEnv?.diffPixels ?? 0,
+          totalPixels: diffEnv?.totalPixels ?? 0,
+        };
+        if (diffEnv?.wroteDiff !== undefined) entry.diffPath = diffEnv.wroteDiff;
+        if (diffEnv?.wroteBaseline !== undefined) entry.wroteBaseline = diffEnv.wroteBaseline;
+        if (diffEnv?.currentPath !== undefined) entry.currentPath = diffEnv.currentPath;
+        if (diffEnv?.message !== undefined) entry.message = diffEnv.message;
+        diffs.push(entry);
+      }
 
       // Capture per-module deltas for the two ring buffers so flaky
       // behavior (unexpected request spike, console error) is pinned to
@@ -383,6 +495,8 @@ async function main(): Promise<void> {
     );
     const traceEnv = parseEnvelope(traceRes) as { path?: string; byteLength?: number };
 
+    const diffsTotalBreached = diffs.filter((d) => d.thresholdBreached).length;
+
     writeFileSync(
       `${OUT_DIR}/report.json`,
       JSON.stringify(
@@ -409,6 +523,11 @@ async function main(): Promise<void> {
             count: (tailEnv?.entries ?? []).length,
             entries: tailEnv?.entries ?? [],
           },
+          summary: {
+            diffsTotalBreached,
+            updateBaselines: args.updateBaselines,
+          },
+          diffs,
           results,
         },
         null,
@@ -418,12 +537,33 @@ async function main(): Promise<void> {
     log(`wrote ${OUT_DIR}/report.json + trace.zip (${traceEnv?.byteLength ?? 0} bytes)`);
 
     await client.send('tools/call', { name: 'electron_close', arguments: { sessionId } }, 10_000);
+
+    // Exit-code contract (see file header):
+    //   0 — all modules passed diff, OR update mode, OR no --baselines
+    //   1 — at least one module breached (diff mode only)
+    //   2 — driver error; handled by the `main().catch` below
+    if (!args.updateBaselines && args.baselinesDir && diffsTotalBreached > 0) {
+      log(`diff gate FAILED: ${diffsTotalBreached} module(s) breached threshold`);
+      process.exitCode = 1;
+    }
   } finally {
     client.kill();
   }
 }
 
-main().catch((err) => {
-  console.error('audit v2 crashed:', err);
-  process.exit(1);
-});
+// Only run when invoked directly (e.g. `tsx tests/ui-audit-driver-v2.ts`).
+// Guards against tests importing this module purely for `parseArgs`.
+const invokedDirectly = (() => {
+  try {
+    return process.argv[1] === fileURLToPath(import.meta.url);
+  } catch {
+    return false;
+  }
+})();
+
+if (invokedDirectly) {
+  main().catch((err) => {
+    console.error('audit v2 crashed:', err);
+    process.exit(2);
+  });
+}

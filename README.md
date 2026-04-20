@@ -220,6 +220,53 @@ Each smoke script accepts `--executable=<path>` and `--args=<main.js>`,
 so the same scripts drive a real target app (e.g. a locally built
 product binary) in addition to the CI fixture.
 
+### Pixel-regression gate
+
+`tests/ui-audit-driver-v2.ts` can double as a visual-regression gate for
+downstream Electron apps. It walks the app's modules, takes a screenshot
+per view, and — when opted in via `--baselines=<dir>` — diffs each shot
+against `<dir>/<module-id>.png` using the `screenshot_diff` MCP tool.
+
+1. **Seed baselines once** (or after an intentional UI change):
+
+   ```sh
+   bun run tests/ui-audit-driver-v2.ts \
+     --executable="$APP_BIN" \
+     --baselines=./tests/baselines \
+     --updateBaselines
+   ```
+
+   Every module screenshot overwrites `./tests/baselines/<module-id>.png`.
+   The driver always exits `0` in update mode. Commit the baselines to
+   the consuming repo.
+
+2. **Run as a PR gate** (no `--updateBaselines`):
+
+   ```sh
+   bun run tests/ui-audit-driver-v2.ts \
+     --executable="$APP_BIN" \
+     --baselines=./tests/baselines \
+     --threshold=0.01 \
+     --pixelThreshold=4 \
+     --diffDir=/tmp/ui-diffs
+   ```
+
+   - `--threshold` — max fraction of pixels that may differ per module (default `0.01` = 1%).
+   - `--pixelThreshold` — per-pixel colour-distance tolerance `[0,255]` (default `0`).
+   - `--diffDir` — when set, diff PNGs are written to `<diffDir>/<module-id>.png` for each breach.
+
+   Exit codes:
+   - `0` — every module passed, or `--baselines` not set, or `--updateBaselines` was used.
+   - `1` — at least one module's diff ratio exceeded `--threshold`.
+   - `2` — driver itself failed (couldn't launch, module crashed, etc.).
+
+   The full verdict lands in `/tmp/llamactl-ui-audit-v2/report.json`
+   under the `diffs` array (per-module) and `summary.diffsTotalBreached`
+   (count of modules over threshold).
+
+Omit `--baselines` entirely to preserve the pre-gate behaviour — no
+diff calls are made and the driver runs identically to prior versions.
+
 ## Environment variables
 
 | Variable                            | Default         | Meaning                                                 |
