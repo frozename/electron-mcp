@@ -67,9 +67,11 @@ src/
 
 tests/                   Vitest suites for pure-logic modules + stdio
                          smoke drivers (sprint{1,2,3}-smoke.ts) and
-                         chained-flow drivers (plan-chat-flow.ts,
-                         chat-compare-flow.ts, sprint{2,3}-flow.ts,
-                         ui-audit-driver-v2.ts).
+                         chained-flow drivers (sprint{2,3}-flow.ts,
+                         ui-audit-driver-v2.ts). The flow drivers
+                         expect a real host app with module-specific
+                         selectors; the smoke drivers run against the
+                         bundled CI fixture in tests/fixtures/ci-app/.
 docs/                    architecture, tools, session-model, security,
                          samples, plans.
 examples/                MCP request samples + end-to-end workflows.
@@ -225,13 +227,14 @@ Stable codes today: `validation_error`, `launch_error`,
 - Fake objects for `SessionManager` tests are fine — they stand in
   for `ElectronApplication` because the manager only calls a
   narrow event-emitter surface.
-- **49-test baseline** — don't regress it. Adding a handler with
+- **130-test baseline** — don't regress it. Adding a handler with
   new validation usually means +1 schema test. Covers schema defaults,
-  allowlist globs, error serialization, session manager, and the
-  console-buffer ring-eviction path. Three **smoke** suites
-  (`tests/sprint{1,2,3}-smoke.ts`) + three **flow** suites
-  (`plan-chat-flow`, `chat-compare-flow`, `sprint2-flow`,
-  `sprint3-flow`) drive a real Electron binary and assert state
+  allowlist globs, error serialization, session manager, the
+  console-buffer ring-eviction path, and the ui-audit-driver-v2 flag
+  parsing + module-JSON loader. Three **smoke** suites
+  (`tests/sprint{1,2,3}-smoke.ts`) run against the bundled CI fixture.
+  Two **flow** suites (`sprint2-flow`, `sprint3-flow`) drive a real
+  host Electron binary with module-specific selectors and assert state
   transitions; these are not part of vitest, run them manually.
 
 ## Security

@@ -1,8 +1,14 @@
 /**
  * Sprint 2 flow test — chains Sprint 1 + Sprint 2 tools for real UX
- * scenarios against the live llamactl app. Each scenario asserts an
+ * scenarios against a target Electron app. Each scenario asserts an
  * observable property via accessibility_snapshot so we prove the tool
  * actually did its job (not just that the call returned ok).
+ *
+ * NOTE: this driver hardcodes selectors for a specific host app's UI
+ * (Dashboard/Models/Presets/Server with an Uninstall/Confirm pattern on
+ * Models and a class filter `<select>` on Presets). Point it at an app
+ * that matches those conventions, or adapt the selectors to yours.
+ * Not run by CI; invoke manually.
  */
 import { spawn, type ChildProcessByStdio } from 'node:child_process';
 import { createInterface } from 'node:readline';

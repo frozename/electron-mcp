@@ -223,15 +223,29 @@ product binary) in addition to the CI fixture.
 ### Pixel-regression gate
 
 `tests/ui-audit-driver-v2.ts` can double as a visual-regression gate for
-downstream Electron apps. It walks the app's modules, takes a screenshot
-per view, and — when opted in via `--baselines=<dir>` — diffs each shot
-against `<dir>/<module-id>.png` using the `screenshot_diff` MCP tool.
+downstream Electron apps. Callers describe the app's primary-nav modules
+in a JSON file (`[{"id": "home", "label": "Home"}, …]`), and the driver
+walks each one, clicking `button[aria-label="<label>"]`, waiting for
+`[data-testid="<id>-root"]`, taking a screenshot, and — when opted in
+via `--baselines=<dir>` — diffing each shot against
+`<dir>/<module-id>.png` using the `screenshot_diff` MCP tool.
+
+The modules JSON schema:
+
+```json
+[
+  { "id": "home", "label": "Home" },
+  { "id": "settings", "label": "Settings" }
+]
+```
 
 1. **Seed baselines once** (or after an intentional UI change):
 
    ```sh
    bun run tests/ui-audit-driver-v2.ts \
      --executable="$APP_BIN" \
+     --modules=./my-modules.json \
+     --out-dir=/tmp/my-audit \
      --baselines=./tests/baselines \
      --updateBaselines
    ```
@@ -245,12 +259,17 @@ against `<dir>/<module-id>.png` using the `screenshot_diff` MCP tool.
    ```sh
    bun run tests/ui-audit-driver-v2.ts \
      --executable="$APP_BIN" \
+     --modules=./my-modules.json \
+     --out-dir=/tmp/my-audit \
      --baselines=./tests/baselines \
      --threshold=0.01 \
      --pixelThreshold=4 \
      --diffDir=/tmp/ui-diffs
    ```
 
+   - `--modules` — required; path to a JSON array of `{id, label}` entries.
+   - `--out-dir` — where the driver writes `report.json`, per-module
+     screenshots, and `trace.zip` (default `/tmp/electron-mcp-ui-audit-v2`).
    - `--threshold` — max fraction of pixels that may differ per module (default `0.01` = 1%).
    - `--pixelThreshold` — per-pixel colour-distance tolerance `[0,255]` (default `0`).
    - `--diffDir` — when set, diff PNGs are written to `<diffDir>/<module-id>.png` for each breach.
@@ -260,12 +279,19 @@ against `<dir>/<module-id>.png` using the `screenshot_diff` MCP tool.
    - `1` — at least one module's diff ratio exceeded `--threshold`.
    - `2` — driver itself failed (couldn't launch, module crashed, etc.).
 
-   The full verdict lands in `/tmp/llamactl-ui-audit-v2/report.json`
-   under the `diffs` array (per-module) and `summary.diffsTotalBreached`
-   (count of modules over threshold).
+   The full verdict lands in `<out-dir>/report.json` under the `diffs`
+   array (per-module) and `summary.diffsTotalBreached` (count of modules
+   over threshold).
 
 Omit `--baselines` entirely to preserve the pre-gate behaviour — no
 diff calls are made and the driver runs identically to prior versions.
+
+### Integration examples
+
+[`llamactl`](https://github.com/frozename/llamactl) uses this driver as
+its committed UI-regression gate (see `scripts/audit.sh` and
+`tests/ui-audit-modules.json` in that repo) — a working example of
+`--modules` + `--out-dir` + pinned-SHA consumption from CI.
 
 ## Environment variables
 

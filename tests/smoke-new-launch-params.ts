@@ -1,9 +1,10 @@
 /**
  * Focused smoke test for the new env + userDataDir params on
- * electron_launch. Launches llamactl, verifies the echoed userDataDir in
- * the response, reads back the process env via electron_evaluate_main
- * (gated behind ELECTRON_MCP_ALLOW_MAIN_EVALUATE=true), and asserts the
- * tmp dir is cleaned up after electron_close.
+ * electron_launch. Launches a target Electron app, verifies the echoed
+ * userDataDir in the response, reads back the process env via
+ * electron_evaluate_main (gated behind
+ * ELECTRON_MCP_ALLOW_MAIN_EVALUATE=true), and asserts the tmp dir is
+ * cleaned up after electron_close.
  *
  * Not wired into any CI — invoke manually:
  *   bun run tests/smoke-new-launch-params.ts \

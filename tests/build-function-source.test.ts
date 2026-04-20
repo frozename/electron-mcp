@@ -7,7 +7,7 @@ import { buildFunctionSource } from '../src/electron/electron-adapter.js';
  * version matched any `return` token in the source, which silently
  * swallowed IIFE + inner-return expressions — the outer function
  * body had no top-level return so the evaluate returned undefined
- * without error. See docs/pilot-<date>.md for the pilot finding.
+ * without error.
  */
 
 describe('buildFunctionSource', () => {

@@ -1,8 +1,11 @@
 /**
  * Smoke test for the Sprint 1 tools: wait_for_selector, accessibility_snapshot,
- * console_tail. Launches llamactl via MCP, exercises each tool once, prints a
- * compact report, closes the session. Not hermetic — it uses the llamactl app
- * on this workstation as a stand-in until the proper fixture app lands.
+ * console_tail. Launches a target Electron app via MCP, exercises each tool
+ * once, prints a compact report, closes the session.
+ *
+ * Runs against the bundled CI fixture (`tests/fixtures/ci-app/`) which
+ * exposes `[data-testid="dashboard-root"]`; point `--executable` +
+ * `--args` at your own Electron app if it matches the same conventions.
  */
 import { spawn, type ChildProcessByStdio } from 'node:child_process';
 import { mkdirSync } from 'node:fs';

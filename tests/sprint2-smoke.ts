@@ -1,7 +1,9 @@
 /**
  * Sprint 2 smoke: hover, press, select_option, dialog_policy.
- * Exercises each new tool once against the llamactl app and reports a
- * compact status line per check. Not hermetic — relies on the live app.
+ * Exercises each new tool once against a target Electron app and reports
+ * a compact status line per check. Runs against the bundled CI fixture
+ * (`tests/fixtures/ci-app/`) which exposes `dashboard-root` + `presets-root`
+ * with a `<select>` inside Presets.
  */
 import { spawn, type ChildProcessByStdio } from 'node:child_process';
 import { mkdirSync } from 'node:fs';

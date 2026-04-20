@@ -1,6 +1,12 @@
 /**
  * Sprint 3 flow test — chains network_tail, wait_for_new_window, and
  * trace_start/stop with assertions on observable side effects.
+ *
+ * NOTE: this driver walks a hardcoded list of module labels
+ * (`Nodes, Chat, Bench, Presets, Dashboard`) and assumes the host app
+ * exposes them with matching `[data-testid="<label>-root"]` containers.
+ * Not run by CI; point it at an app whose primary nav exposes those
+ * modules, or adapt the list to yours.
  */
 import { spawn, type ChildProcessByStdio } from 'node:child_process';
 import { mkdirSync, existsSync, statSync, unlinkSync } from 'node:fs';

@@ -1,7 +1,7 @@
 /**
  * Sprint 3 smoke: network_tail, trace_start/stop. wait_for_new_window is
- * covered by the type checker; llamactl doesn't open popups so there's
- * nothing meaningful to wait for in this smoke.
+ * covered by the type checker; the bundled CI fixture doesn't open
+ * popups so there's nothing meaningful to wait for in this smoke.
  */
 import { spawn, type ChildProcessByStdio } from 'node:child_process';
 import { mkdirSync } from 'node:fs';

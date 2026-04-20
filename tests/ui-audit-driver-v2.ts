@@ -4,6 +4,13 @@
  * the hand-rolled evaluate + sleep approach in v1. Tracks per-module
  * timings so we can diff against the original.
  *
+ * The driver is library-generic: callers supply the module list via
+ * `--modules=<path-to-json>` and an output directory via
+ * `--out-dir=<path>` (default `/tmp/electron-mcp-ui-audit-v2`). The JSON
+ * file is an array of `{ id, label }` entries; for each entry the driver
+ * clicks `button[aria-label="<label>"]`, waits for
+ * `[data-testid="<id>-root"]`, and records a screenshot + a11y summary.
+ *
  * Optional pixel-regression gate: pass `--baselines=<dir>` to compare
  * each module's post-nav screenshot against
  * `<dir>/<module-id>.png` via the `screenshot_diff` MCP tool. Seed the
@@ -11,13 +18,13 @@
  * (exit 1) when any module breaches the ratio/per-pixel threshold.
  */
 import { spawn, type ChildProcessByStdio } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import type { Readable, Writable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
-const OUT_DIR = '/tmp/llamactl-ui-audit-v2';
+const DEFAULT_OUT_DIR = '/tmp/electron-mcp-ui-audit-v2';
 
 interface JsonRpcResponse {
   id?: number;
@@ -25,35 +32,18 @@ interface JsonRpcResponse {
   error?: { code: number; message: string; data?: unknown };
 }
 
-interface Module {
+export interface Module {
   id: string;
   label: string;
 }
-
-const MODULES: Module[] = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'nodes', label: 'Nodes' },
-  { id: 'chat', label: 'Chat' },
-  { id: 'plan', label: 'Plan' },
-  { id: 'ops-chat', label: 'Operator Console' },
-  { id: 'cost', label: 'Cost' },
-  { id: 'pipelines', label: 'Pipelines' },
-  { id: 'workloads', label: 'Workloads' },
-  { id: 'models', label: 'Models' },
-  { id: 'presets', label: 'Presets' },
-  { id: 'pulls', label: 'Pulls' },
-  { id: 'bench', label: 'Bench' },
-  { id: 'server', label: 'Server' },
-  { id: 'logs', label: 'Logs' },
-  { id: 'lmstudio', label: 'LM Studio' },
-  { id: 'settings', label: 'Settings' },
-];
 
 export interface Options {
   executable: string;
   execArgs: string[];
   env: Record<string, string>;
   userDataDir?: string;
+  modulesPath: string;
+  outDir: string;
   baselinesDir?: string;
   updateBaselines: boolean;
   threshold: number;
@@ -63,6 +53,51 @@ export interface Options {
 
 const DEFAULT_THRESHOLD = 0.01;
 const DEFAULT_PIXEL_THRESHOLD = 0;
+
+/**
+ * Load and validate the modules JSON file. Expects an array of
+ * `{ id, label }` entries with non-empty string fields. Throws clearly
+ * on any deviation so typos in the caller's config fail fast.
+ */
+export function loadModules(path: string): Module[] {
+  let raw: string;
+  try {
+    raw = readFileSync(path, 'utf8');
+  } catch (err) {
+    throw new Error(
+      `failed to read --modules=${path}: ${(err as NodeJS.ErrnoException).message}`,
+    );
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    throw new Error(
+      `failed to parse --modules=${path} as JSON: ${(err as Error).message}`,
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error(`--modules=${path} must contain a JSON array of { id, label } entries`);
+  }
+  const out: Module[] = [];
+  parsed.forEach((entry, idx) => {
+    if (typeof entry !== 'object' || entry === null) {
+      throw new Error(`--modules=${path}[${idx}] is not an object`);
+    }
+    const e = entry as { id?: unknown; label?: unknown };
+    if (typeof e.id !== 'string' || e.id.length === 0) {
+      throw new Error(`--modules=${path}[${idx}].id must be a non-empty string`);
+    }
+    if (typeof e.label !== 'string' || e.label.length === 0) {
+      throw new Error(`--modules=${path}[${idx}].label must be a non-empty string`);
+    }
+    out.push({ id: e.id, label: e.label });
+  });
+  if (out.length === 0) {
+    throw new Error(`--modules=${path} contained an empty array (need at least one module)`);
+  }
+  return out;
+}
 
 function parseNumber(flag: string, raw: string): number {
   const n = Number(raw);
@@ -77,6 +112,8 @@ export function parseArgs(argv: string[]): Options {
   let execArgs: string[] = [];
   const env: Record<string, string> = {};
   let userDataDir: string | undefined;
+  let modulesPath: string | undefined;
+  let outDir: string = DEFAULT_OUT_DIR;
   let baselinesDir: string | undefined;
   let updateBaselines = false;
   let threshold = DEFAULT_THRESHOLD;
@@ -91,6 +128,10 @@ export function parseArgs(argv: string[]): Options {
       if (eq > 0) env[kv.slice(0, eq)] = kv.slice(eq + 1);
     } else if (a.startsWith('--userDataDir=')) {
       userDataDir = a.slice('--userDataDir='.length);
+    } else if (a.startsWith('--modules=')) {
+      modulesPath = a.slice('--modules='.length);
+    } else if (a.startsWith('--out-dir=')) {
+      outDir = a.slice('--out-dir='.length);
     } else if (a.startsWith('--baselines=')) {
       baselinesDir = a.slice('--baselines='.length);
     } else if (a === '--updateBaselines') {
@@ -104,10 +145,24 @@ export function parseArgs(argv: string[]): Options {
     }
   }
   if (!executable) throw new Error('--executable required');
+  if (!modulesPath) {
+    throw new Error(
+      '--modules=<path-to-json> required; JSON must be an array of { id, label } entries',
+    );
+  }
   if (updateBaselines && !baselinesDir) {
     throw new Error('--updateBaselines requires --baselines=<dir>');
   }
-  const out: Options = { executable, execArgs, env, updateBaselines, threshold, pixelThreshold };
+  const out: Options = {
+    executable,
+    execArgs,
+    env,
+    modulesPath,
+    outDir,
+    updateBaselines,
+    threshold,
+    pixelThreshold,
+  };
   if (userDataDir !== undefined) out.userDataDir = userDataDir;
   if (baselinesDir !== undefined) out.baselinesDir = baselinesDir;
   if (diffDir !== undefined) out.diffDir = diffDir;
@@ -218,7 +273,8 @@ export interface DiffReport {
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv);
-  mkdirSync(OUT_DIR, { recursive: true });
+  const modules = loadModules(args.modulesPath);
+  mkdirSync(args.outDir, { recursive: true });
   // In update mode the baselines dir may not exist yet — that's the seed
   // case. In diff mode we intentionally DON'T create it so a missing dir
   // surfaces as explicit per-module "baseline missing" failures rather
@@ -292,14 +348,18 @@ async function main(): Promise<void> {
       5_000,
     );
 
-    // Wait for first-render instead of sleeping.
+    // Wait for first-render instead of sleeping. Use the first module's
+    // root selector as the "app is ready" signal — the module list is
+    // caller-supplied, so there's no baked-in assumption about which
+    // module lands first.
+    const firstModule = modules[0]!;
     await client.send(
       'tools/call',
       {
         name: 'electron_wait_for_selector',
         arguments: {
           sessionId,
-          selector: '[data-testid="dashboard-root"]',
+          selector: `[data-testid="${firstModule.id}-root"]`,
           state: 'visible',
           timeout: 10_000,
         },
@@ -325,7 +385,7 @@ async function main(): Promise<void> {
     let priorConsoleSize = 0;
     let priorNetworkSize = 0;
 
-    for (const mod of MODULES) {
+    for (const mod of modules) {
       const start = Date.now();
       log(`→ ${mod.label}`);
 
@@ -357,7 +417,7 @@ async function main(): Promise<void> {
       const tree = (parseEnvelope(a11y) as { tree?: A11yNode | null })?.tree ?? null;
       const summary = summarizeA11y(tree);
 
-      const screenshotPath = `${OUT_DIR}/${String(results.length + 1).padStart(2, '0')}-${mod.id}.png`;
+      const screenshotPath = `${args.outDir}/${String(results.length + 1).padStart(2, '0')}-${mod.id}.png`;
       await client.send(
         'tools/call',
         {
@@ -487,7 +547,7 @@ async function main(): Promise<void> {
     // Stop tracing LAST so the trace captures every navigation and the
     // ring-buffer drains. Writes a .zip that can be replayed in
     // `playwright show-trace`.
-    const tracePath = `${OUT_DIR}/trace.zip`;
+    const tracePath = `${args.outDir}/trace.zip`;
     const traceRes = await client.send(
       'tools/call',
       { name: 'electron_trace_stop', arguments: { sessionId, path: tracePath } },
@@ -498,7 +558,7 @@ async function main(): Promise<void> {
     const diffsTotalBreached = diffs.filter((d) => d.thresholdBreached).length;
 
     writeFileSync(
-      `${OUT_DIR}/report.json`,
+      `${args.outDir}/report.json`,
       JSON.stringify(
         {
           runAt: new Date().toISOString(),
@@ -534,7 +594,7 @@ async function main(): Promise<void> {
         2,
       ),
     );
-    log(`wrote ${OUT_DIR}/report.json + trace.zip (${traceEnv?.byteLength ?? 0} bytes)`);
+    log(`wrote ${args.outDir}/report.json + trace.zip (${traceEnv?.byteLength ?? 0} bytes)`);
 
     await client.send('tools/call', { name: 'electron_close', arguments: { sessionId } }, 10_000);
 
