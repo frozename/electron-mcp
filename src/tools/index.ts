@@ -1,6 +1,7 @@
 import { zodToJsonSchema } from '../utils/zod-to-json.js';
 
 import {
+  AssertVisibleTextInputSchema,
   ElectronAccessibilitySnapshotInputSchema,
   ElectronCloseInputSchema,
   ElectronConsoleTailInputSchema,
@@ -23,8 +24,10 @@ import {
   ElectronClickInputSchema,
   ElectronEvaluateMainInputSchema,
   ElectronEvaluateRendererInputSchema,
+  ScreenshotDiffInputSchema,
 } from '../schemas/index.js';
 
+import { electronAssertVisibleText } from './assert-visible-text.js';
 import { electronConsoleTail } from './console.js';
 import { electronDialogPolicy } from './dialogs.js';
 import {
@@ -46,6 +49,7 @@ import {
   electronSelectOption,
   electronWaitForSelector,
 } from './renderer.js';
+import { electronScreenshotDiff } from './screenshot-diff.js';
 import { electronTraceStart, electronTraceStop } from './tracing.js';
 import type { ToolContext, ToolHandler } from './types.js';
 import {
@@ -159,6 +163,27 @@ export function buildToolRegistry(): ToolDefinition[] {
         'Capture a screenshot of a window. Saves to a path if provided, otherwise returns base64.',
       inputSchema: zodToJsonSchema(ElectronScreenshotInputSchema),
       handler: electronScreenshot as unknown as ToolHandler<unknown, unknown>,
+    },
+    {
+      name: 'screenshot_diff',
+      description:
+        'Pixel-regression diff: capture a window (or a selector-scoped region) and compare against ' +
+        'a caller-supplied baseline PNG. Pass updateBaseline:true to seed/rewrite the baseline. ' +
+        'Returns diffPixels, diffRatio, and thresholdBreached. When a diffPath is supplied AND diffs ' +
+        'exist, writes a diff image to that path. Baselines are caller-owned — the tool never writes ' +
+        'to a shared default path.',
+      inputSchema: zodToJsonSchema(ScreenshotDiffInputSchema),
+      handler: electronScreenshotDiff as unknown as ToolHandler<unknown, unknown>,
+    },
+    {
+      name: 'assert_visible_text',
+      description:
+        'Assert that a piece of text is visible (or attached, when includeHidden:true) inside a ' +
+        'window. Supports substring (default) or regex matching, optional selector scope, and ' +
+        'polls up to timeoutMs using Playwright\'s built-in locator waits. On failure returns up ' +
+        'to 3 nearest text candidates to aid debugging.',
+      inputSchema: zodToJsonSchema(AssertVisibleTextInputSchema),
+      handler: electronAssertVisibleText as unknown as ToolHandler<unknown, unknown>,
     },
     {
       name: 'electron_wait_for_selector',

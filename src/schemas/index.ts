@@ -621,6 +621,165 @@ export const ElectronEvaluateMainInputSchema = z.object({
 export type ElectronEvaluateMainInput = z.infer<typeof ElectronEvaluateMainInputSchema>;
 
 /* ------------------------------------------------------------------ */
+/* Screenshot diff                                                     */
+/* ------------------------------------------------------------------ */
+
+export const ScreenshotDiffInputSchema = z.object({
+  sessionId: SessionIdSchema,
+  window: WindowRefSchema.optional(),
+  /** Optional CSS selector to scope the screenshot; else full viewport. */
+  selector: z
+    .string()
+    .optional()
+    .describe('CSS/Playwright selector to scope the screenshot to an element.'),
+  /** Baseline file path. When absent + updateBaseline=false → ok:false. */
+  baselinePath: z
+    .string()
+    .min(1)
+    .describe(
+      'Absolute path to the baseline PNG. Caller-supplied so baselines do not leak across sessions.',
+    ),
+  /** Write the current screenshot to baselinePath and return ok:true. */
+  updateBaseline: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Overwrite the baseline with the current screenshot and return ok:true.'),
+  /** Pixel diff threshold [0,1] — ratio of changed pixels tolerated. */
+  threshold: z
+    .number()
+    .min(0)
+    .max(1)
+    .optional()
+    .default(0.01)
+    .describe('Max ratio of changed pixels tolerated before ok becomes false.'),
+  /** Per-pixel color distance threshold, [0,255]. Default 0 = exact. */
+  pixelThreshold: z
+    .number()
+    .min(0)
+    .max(255)
+    .optional()
+    .default(0)
+    .describe('Per-pixel color distance tolerance (0 = exact match).'),
+  /** Write the diff image to this path (omit to skip). */
+  diffPath: z
+    .string()
+    .optional()
+    .describe('If set and diffs are detected, write the diff PNG to this absolute path.'),
+  /** Optional absolute path for the current screenshot; otherwise tmp. */
+  currentPath: z
+    .string()
+    .optional()
+    .describe('Absolute path to write the current screenshot to. A tmp file is used when omitted.'),
+  /** Include the entire scroll-height of the page (selector-less mode only). */
+  fullPage: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Capture the full scrollable page. Ignored when `selector` is set.'),
+  timeout: TimeoutSchema,
+});
+export type ScreenshotDiffInput = z.infer<typeof ScreenshotDiffInputSchema>;
+
+export const ScreenshotDiffOutputSchema = z.object({
+  ok: z.boolean(),
+  sessionId: z.string(),
+  baselineExists: z
+    .boolean()
+    .describe('True if the baseline existed BEFORE this call (always false when updateBaseline=true).'),
+  diffPixels: z.number().int().nonnegative(),
+  totalPixels: z.number().int().nonnegative(),
+  diffRatio: z.number().min(0).max(1),
+  thresholdBreached: z.boolean(),
+  wroteBaseline: z
+    .string()
+    .optional()
+    .describe('Set when updateBaseline=true — echoes the baseline path written.'),
+  wroteDiff: z
+    .string()
+    .optional()
+    .describe('Set when diffPath was supplied AND diffs were detected.'),
+  currentPath: z
+    .string()
+    .describe('Path to the current screenshot on disk. A tmp file when none was supplied.'),
+  message: z
+    .string()
+    .optional()
+    .describe('Human-readable note when ok:false (e.g. baseline missing, size mismatch).'),
+});
+export type ScreenshotDiffOutput = z.infer<typeof ScreenshotDiffOutputSchema>;
+
+/* ------------------------------------------------------------------ */
+/* Assert visible text                                                 */
+/* ------------------------------------------------------------------ */
+
+export const AssertVisibleTextInputSchema = z.object({
+  sessionId: SessionIdSchema,
+  window: WindowRefSchema.optional(),
+  /** Exact substring or a regex pattern. Default: substring match. */
+  text: z
+    .string()
+    .min(1)
+    .describe('Literal substring (default) or a JavaScript RegExp source when `regex` is true.'),
+  /** Treat `text` as a RegExp pattern (JS syntax, no flags). */
+  regex: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Interpret `text` as a RegExp source (no flags are applied).'),
+  /** Scope the search to a subtree. */
+  selector: z
+    .string()
+    .optional()
+    .describe('Optional CSS selector that scopes the search to a subtree.'),
+  /** Include hidden elements (CSS visibility:hidden, display:none, aria-hidden). */
+  includeHidden: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('When true, match hidden elements too (no visibility filtering).'),
+  /** Wait up to this many ms for the text to appear before failing. */
+  timeoutMs: z
+    .number()
+    .int()
+    .min(0)
+    .max(30_000)
+    .optional()
+    .default(5_000)
+    .describe('Polling deadline in ms. 0 means a single immediate check.'),
+});
+export type AssertVisibleTextInput = z.infer<typeof AssertVisibleTextInputSchema>;
+
+export const AssertVisibleTextNearestMatchSchema = z.object({
+  locator: z.string(),
+  text: z.string(),
+});
+export type AssertVisibleTextNearestMatch = z.infer<typeof AssertVisibleTextNearestMatchSchema>;
+
+export const AssertVisibleTextOutputSchema = z.object({
+  ok: z.boolean(),
+  sessionId: z.string(),
+  /** First matched element's locator path (best-effort). */
+  locator: z
+    .string()
+    .optional()
+    .describe('Short path-based selector for the first match (best-effort).'),
+  /** Matched text (exact extract from the DOM). */
+  matchedText: z
+    .string()
+    .optional()
+    .describe('The exact text content of the matched element.'),
+  /** When ok:false, up to 3 closest matches to help debug. */
+  nearestMatches: z
+    .array(AssertVisibleTextNearestMatchSchema)
+    .optional()
+    .describe('Up to 3 nearest text candidates when the assertion fails.'),
+  elapsedMs: z.number().int().nonnegative(),
+  message: z.string().optional().describe('Human-readable note when ok:false.'),
+});
+export type AssertVisibleTextOutput = z.infer<typeof AssertVisibleTextOutputSchema>;
+
+/* ------------------------------------------------------------------ */
 /* Generic evaluate response                                           */
 /* ------------------------------------------------------------------ */
 

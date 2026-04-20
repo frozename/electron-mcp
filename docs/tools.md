@@ -193,6 +193,97 @@ is always set so callers can size their decode buffers.
 
 ---
 
+## Visual regression
+
+### `screenshot_diff`
+
+Capture a window (or a selector-scoped region) and compare it pixel-wise
+against a caller-supplied baseline PNG. Useful for catching layout /
+styling regressions that humans only spot by eyeballing screenshots.
+
+| Field            | Type                 | Notes                                                                         |
+| ---------------- | -------------------- | ----------------------------------------------------------------------------- |
+| `sessionId`      | string (required)    | Session handle                                                                |
+| `window`         | index / string       | Window reference                                                              |
+| `selector`       | string               | If set, uses `locator.screenshot()` scoped to the element; otherwise full viewport |
+| `baselinePath`   | string (required)    | Absolute path to the baseline PNG. Caller-supplied to avoid cross-session leaks |
+| `updateBaseline` | boolean (default false) | Overwrite the baseline with the current capture and return `ok: true`      |
+| `threshold`      | number 0..1 (default 0.01) | Ratio of changed pixels tolerated before `ok` becomes false             |
+| `pixelThreshold` | number 0..255 (default 0) | Per-pixel color distance tolerance (0 = exact)                           |
+| `diffPath`       | string               | If set AND diffs exist, writes a diff PNG to this path                        |
+| `currentPath`    | string               | Optional absolute path for the current capture. Defaults to a tmp file        |
+| `fullPage`       | boolean (default false) | Capture the full scrollable page. Ignored when `selector` is set           |
+| `timeout`        | number (ms)          | Override the default action timeout                                           |
+
+Response:
+
+```json
+{
+  "ok": false,
+  "sessionId": "sess_…",
+  "baselineExists": true,
+  "diffPixels": 142,
+  "totalPixels": 2073600,
+  "diffRatio": 0.0000685,
+  "thresholdBreached": true,
+  "wroteDiff": "/tmp/diff.png",
+  "currentPath": "/tmp/electron-mcp-diff-abc/current.png"
+}
+```
+
+Behavior matrix:
+
+- `updateBaseline: true` → always returns `ok: true`, writes the baseline, skips diffing.
+- Baseline missing + `updateBaseline: false` → returns `ok: false`, `baselineExists: false`, and a `message` nudging the caller to seed it. Does not throw.
+- Dimension mismatch → returns `ok: false`, `thresholdBreached: true`, with a descriptive `message`.
+- Otherwise → runs pixelmatch with `threshold = pixelThreshold / 255`, sets `ok = diffRatio <= threshold`.
+
+### `assert_visible_text`
+
+Assert a piece of text is present (and by default visible) in the
+current window. Uses Playwright's `locator.waitFor({ state: 'visible' })`
+as the polling primitive — no manual sleep loops.
+
+| Field           | Type                 | Notes                                                                |
+| --------------- | -------------------- | -------------------------------------------------------------------- |
+| `sessionId`     | string (required)    | Session handle                                                       |
+| `window`        | index / string       | Window reference                                                     |
+| `text`          | string (required)    | Substring (default) or a RegExp source when `regex: true`            |
+| `regex`         | boolean (default false) | Treat `text` as a RegExp source (no flags)                        |
+| `selector`      | string               | Scope the text search under this element                             |
+| `includeHidden` | boolean (default false) | Match hidden nodes too; waits for `attached` instead of `visible` |
+| `timeoutMs`     | number 0..30000 (default 5000) | Polling deadline; `0` means a single immediate check       |
+
+Response on success:
+
+```json
+{
+  "ok": true,
+  "sessionId": "sess_…",
+  "locator": "div.card > button#uninstall",
+  "matchedText": "Uninstall",
+  "elapsedMs": 42
+}
+```
+
+Response on failure — up to 3 closest on-page text candidates come back
+via `nearestMatches` so the caller (or LLM) can see what IS on screen:
+
+```json
+{
+  "ok": false,
+  "sessionId": "sess_…",
+  "elapsedMs": 5003,
+  "nearestMatches": [
+    { "locator": "button", "text": "Install" },
+    { "locator": "a", "text": "Uninstall plugin" }
+  ],
+  "message": "Text not visible within 5000ms: …"
+}
+```
+
+---
+
 ## Main process
 
 ### `electron_evaluate_main`

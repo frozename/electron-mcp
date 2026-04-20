@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  AssertVisibleTextInputSchema,
   ElectronAccessibilitySnapshotInputSchema,
   ElectronClickInputSchema,
   ElectronConsoleTailInputSchema,
@@ -14,6 +15,7 @@ import {
   ElectronWaitForNewWindowInputSchema,
   ElectronWaitForSelectorInputSchema,
   ElectronWaitForWindowInputSchema,
+  ScreenshotDiffInputSchema,
 } from '../src/schemas/index.js';
 
 describe('ElectronLaunchInputSchema', () => {
@@ -211,5 +213,95 @@ describe('ElectronTraceStartInputSchema', () => {
 describe('ElectronTraceStopInputSchema', () => {
   test('requires path', () => {
     expect(() => ElectronTraceStopInputSchema.parse({ sessionId: 's' })).toThrow();
+  });
+});
+
+describe('ScreenshotDiffInputSchema', () => {
+  test('applies defaults', () => {
+    const parsed = ScreenshotDiffInputSchema.parse({
+      sessionId: 's',
+      baselinePath: '/tmp/baseline.png',
+    });
+    expect(parsed.updateBaseline).toBe(false);
+    expect(parsed.threshold).toBe(0.01);
+    expect(parsed.pixelThreshold).toBe(0);
+    expect(parsed.fullPage).toBe(false);
+  });
+
+  test('rejects missing baseline path', () => {
+    expect(() => ScreenshotDiffInputSchema.parse({ sessionId: 's' })).toThrow();
+  });
+
+  test('rejects out-of-range threshold', () => {
+    expect(() =>
+      ScreenshotDiffInputSchema.parse({
+        sessionId: 's',
+        baselinePath: '/x',
+        threshold: 1.5,
+      }),
+    ).toThrow();
+  });
+
+  test('rejects out-of-range pixelThreshold', () => {
+    expect(() =>
+      ScreenshotDiffInputSchema.parse({
+        sessionId: 's',
+        baselinePath: '/x',
+        pixelThreshold: 300,
+      }),
+    ).toThrow();
+  });
+
+  test('accepts optional selector and diffPath', () => {
+    const parsed = ScreenshotDiffInputSchema.parse({
+      sessionId: 's',
+      baselinePath: '/b.png',
+      selector: 'div.panel',
+      diffPath: '/d.png',
+    });
+    expect(parsed.selector).toBe('div.panel');
+    expect(parsed.diffPath).toBe('/d.png');
+  });
+});
+
+describe('AssertVisibleTextInputSchema', () => {
+  test('applies defaults', () => {
+    const parsed = AssertVisibleTextInputSchema.parse({
+      sessionId: 's',
+      text: 'Uninstall',
+    });
+    expect(parsed.regex).toBe(false);
+    expect(parsed.includeHidden).toBe(false);
+    expect(parsed.timeoutMs).toBe(5_000);
+  });
+
+  test('rejects empty text', () => {
+    expect(() => AssertVisibleTextInputSchema.parse({ sessionId: 's', text: '' })).toThrow();
+  });
+
+  test('rejects oversized timeout', () => {
+    expect(() =>
+      AssertVisibleTextInputSchema.parse({ sessionId: 's', text: 'x', timeoutMs: 60_000 }),
+    ).toThrow();
+  });
+
+  test('accepts regex + includeHidden', () => {
+    const parsed = AssertVisibleTextInputSchema.parse({
+      sessionId: 's',
+      text: '^\\s*Uninstall',
+      regex: true,
+      includeHidden: true,
+    });
+    expect(parsed.regex).toBe(true);
+    expect(parsed.includeHidden).toBe(true);
+  });
+
+  test('accepts timeoutMs=0 for immediate check', () => {
+    const parsed = AssertVisibleTextInputSchema.parse({
+      sessionId: 's',
+      text: 'x',
+      timeoutMs: 0,
+    });
+    expect(parsed.timeoutMs).toBe(0);
   });
 });

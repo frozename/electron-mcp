@@ -125,7 +125,7 @@ macOS/Linux and is not parsed in this release.
 
 ## Tools
 
-23 tools across 6 categories. All handlers return a structured `{ ok,
+25 tools across 7 categories. All handlers return a structured `{ ok,
 sessionId, … }` envelope and throw a typed `ElectronMcpError` on failure.
 
 | Category      | Tool                               | Purpose                                                        |
@@ -146,6 +146,8 @@ sessionId, … }` envelope and throw a typed `ElectronMcpError` on failure.
 | Renderer      | `electron_wait_for_selector`       | Wait for `visible` / `hidden` / `attached` / `detached`        |
 | Renderer      | `electron_evaluate_renderer`       | Evaluate JS in the renderer                                    |
 | Renderer      | `electron_screenshot`              | Capture a PNG/JPEG of a window                                 |
+| Visual        | `screenshot_diff`                  | Pixel-regression diff vs a caller-supplied baseline PNG        |
+| Visual        | `assert_visible_text`              | Assert text appears (substring/regex) with polling waits       |
 | Observability | `electron_accessibility_snapshot`  | Structured a11y tree (roles/names/values) for LLM reasoning    |
 | Observability | `electron_console_tail`            | Ring buffer of renderer console + page errors (per session)    |
 | Observability | `electron_network_tail`            | Ring buffer of HTTP requests/responses with filters            |
