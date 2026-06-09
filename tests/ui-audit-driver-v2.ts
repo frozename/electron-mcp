@@ -318,7 +318,11 @@ async function main(): Promise<void> {
     const launchEnv = parseEnvelope(launched) as { ok?: boolean; sessionId?: string };
     const sessionId = launchEnv?.sessionId;
     if (!sessionId) {
+      // Exit 2 (driver/setup error): a failed launch means zero modules
+      // were audited, and a bare return here lets the process exit 0 —
+      // CI then reports a green audit that never ran.
       console.error('launch failed', launchEnv);
+      process.exitCode = 2;
       return;
     }
     log(`session ${sessionId}`);
