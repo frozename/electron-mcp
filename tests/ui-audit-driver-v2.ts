@@ -7,9 +7,21 @@
  * The driver is library-generic: callers supply the module list via
  * `--modules=<path-to-json>` and an output directory via
  * `--out-dir=<path>` (default `/tmp/electron-mcp-ui-audit-v2`). The JSON
- * file is an array of `{ id, label }` entries; for each entry the driver
- * clicks `button[aria-label="<label>"]`, waits for
- * `[data-testid="<id>-root"]`, and records a screenshot + a11y summary.
+ * file is an array of `{ id, label, rootTestId? }` entries; for each
+ * entry the driver navigates to the module, waits for
+ * `[data-testid="<rootTestId ?? id+'-root'>"]`, and records a
+ * screenshot + a11y summary.
+ *
+ * Navigation is `electron_click` on `button[aria-label="<label>"]` by
+ * default. Apps without per-module aria-label buttons supply
+ * `--nav-script=<path>`: a renderer expression template evaluated per
+ * module instead, with `{{id}}`/`{{label}}` (raw) and
+ * `{{idJson}}`/`{{labelJson}}` (JSON-stringified) placeholders.
+ *
+ * `--setup-script=<path>` (optional) is a renderer expression evaluated
+ * once after first render, before the module loop — for app-specific
+ * setup like dismissing a first-run overlay that would otherwise sit in
+ * every screenshot. A failing setup script aborts the run (exit 2).
  *
  * Optional pixel-regression gate: pass `--baselines=<dir>` to compare
  * each module's post-nav screenshot against
@@ -35,6 +47,34 @@ interface JsonRpcResponse {
 export interface Module {
   id: string;
   label: string;
+  /**
+   * Overrides the `data-testid` the driver waits on after navigation.
+   * Defaults to `<id>-root`; needed when module ids contain characters
+   * the app's testid vocabulary translates (e.g. `models.bench` →
+   * `models-bench-root`).
+   */
+  rootTestId?: string;
+}
+
+/** The testid whose visibility marks the module as rendered. */
+export function rootTestIdOf(mod: Module): string {
+  return mod.rootTestId ?? `${mod.id}-root`;
+}
+
+/**
+ * Renders a `--nav-script` template for one module. `{{id}}`/`{{label}}`
+ * substitute raw (safe inside string literals for ids; labels may need
+ * the JSON forms), `{{idJson}}`/`{{labelJson}}` substitute
+ * JSON-stringified (quotes included).
+ */
+export function renderNavExpression(template: string, mod: Module): string {
+  // split/join instead of replaceAll: works on the repo's pre-es2021 lib
+  // target and avoids regex-escaping the placeholder tokens.
+  return template
+    .split('{{idJson}}').join(JSON.stringify(mod.id))
+    .split('{{labelJson}}').join(JSON.stringify(mod.label))
+    .split('{{id}}').join(mod.id)
+    .split('{{label}}').join(mod.label);
 }
 
 export interface Options {
@@ -49,6 +89,8 @@ export interface Options {
   threshold: number;
   pixelThreshold: number;
   diffDir?: string;
+  navScriptPath?: string;
+  setupScriptPath?: string;
 }
 
 const DEFAULT_THRESHOLD = 0.01;
@@ -84,14 +126,24 @@ export function loadModules(path: string): Module[] {
     if (typeof entry !== 'object' || entry === null) {
       throw new Error(`--modules=${path}[${idx}] is not an object`);
     }
-    const e = entry as { id?: unknown; label?: unknown };
+    const e = entry as { id?: unknown; label?: unknown; rootTestId?: unknown };
     if (typeof e.id !== 'string' || e.id.length === 0) {
       throw new Error(`--modules=${path}[${idx}].id must be a non-empty string`);
     }
     if (typeof e.label !== 'string' || e.label.length === 0) {
       throw new Error(`--modules=${path}[${idx}].label must be a non-empty string`);
     }
-    out.push({ id: e.id, label: e.label });
+    if (
+      e.rootTestId !== undefined &&
+      (typeof e.rootTestId !== 'string' || e.rootTestId.length === 0)
+    ) {
+      throw new Error(
+        `--modules=${path}[${idx}].rootTestId must be a non-empty string when present`,
+      );
+    }
+    const mod: Module = { id: e.id, label: e.label };
+    if (typeof e.rootTestId === 'string') mod.rootTestId = e.rootTestId;
+    out.push(mod);
   });
   if (out.length === 0) {
     throw new Error(`--modules=${path} contained an empty array (need at least one module)`);
@@ -119,6 +171,8 @@ export function parseArgs(argv: string[]): Options {
   let threshold = DEFAULT_THRESHOLD;
   let pixelThreshold = DEFAULT_PIXEL_THRESHOLD;
   let diffDir: string | undefined;
+  let navScriptPath: string | undefined;
+  let setupScriptPath: string | undefined;
   for (const a of argv.slice(2)) {
     if (a.startsWith('--executable=')) executable = a.slice('--executable='.length);
     else if (a.startsWith('--args=')) execArgs = a.slice('--args='.length).split(' ').filter(Boolean);
@@ -142,6 +196,10 @@ export function parseArgs(argv: string[]): Options {
       pixelThreshold = parseNumber('--pixelThreshold', a.slice('--pixelThreshold='.length));
     } else if (a.startsWith('--diffDir=')) {
       diffDir = a.slice('--diffDir='.length);
+    } else if (a.startsWith('--nav-script=')) {
+      navScriptPath = a.slice('--nav-script='.length);
+    } else if (a.startsWith('--setup-script=')) {
+      setupScriptPath = a.slice('--setup-script='.length);
     }
   }
   if (!executable) throw new Error('--executable required');
@@ -166,7 +224,20 @@ export function parseArgs(argv: string[]): Options {
   if (userDataDir !== undefined) out.userDataDir = userDataDir;
   if (baselinesDir !== undefined) out.baselinesDir = baselinesDir;
   if (diffDir !== undefined) out.diffDir = diffDir;
+  if (navScriptPath !== undefined) out.navScriptPath = navScriptPath;
+  if (setupScriptPath !== undefined) out.setupScriptPath = setupScriptPath;
   return out;
+}
+
+/** Read a `--nav-script`/`--setup-script` file, failing with the flag name. */
+function readScript(flag: string, path: string): string {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch (err) {
+    throw new Error(
+      `failed to read ${flag}=${path}: ${(err as NodeJS.ErrnoException).message}`,
+    );
+  }
 }
 
 class McpClient {
@@ -274,6 +345,16 @@ export interface DiffReport {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv);
   const modules = loadModules(args.modulesPath);
+  // Read the optional scripts up front so a bad path fails before any
+  // Electron process is launched (main().catch → exit 2).
+  const navScriptTemplate =
+    args.navScriptPath !== undefined
+      ? readScript('--nav-script', args.navScriptPath)
+      : undefined;
+  const setupScript =
+    args.setupScriptPath !== undefined
+      ? readScript('--setup-script', args.setupScriptPath)
+      : undefined;
   mkdirSync(args.outDir, { recursive: true });
   // In update mode the baselines dir may not exist yet — that's the seed
   // case. In diff mode we intentionally DON'T create it so a missing dir
@@ -363,13 +444,35 @@ async function main(): Promise<void> {
         name: 'electron_wait_for_selector',
         arguments: {
           sessionId,
-          selector: `[data-testid="${firstModule.id}-root"]`,
+          selector: `[data-testid="${rootTestIdOf(firstModule)}"]`,
           state: 'visible',
           timeout: 10_000,
         },
       },
       12_000,
     );
+
+    // One-shot app-specific setup (e.g. dismiss a first-run overlay)
+    // after the renderer is provably alive. A failing setup script means
+    // every subsequent screenshot would be polluted — abort (exit 2).
+    if (setupScript !== undefined) {
+      const setupRes = await client.send(
+        'tools/call',
+        {
+          name: 'electron_evaluate_renderer',
+          arguments: { sessionId, expression: setupScript },
+        },
+        15_000,
+      );
+      const setupIsError =
+        (setupRes.result as { isError?: boolean } | undefined)?.isError === true;
+      if (setupRes.error !== undefined || setupIsError) {
+        console.error('setup script failed:', setupRes.error ?? parseEnvelope(setupRes));
+        process.exitCode = 2;
+        return;
+      }
+      log('setup script ok');
+    }
 
     interface Result {
       module: string;
@@ -393,14 +496,26 @@ async function main(): Promise<void> {
       const start = Date.now();
       log(`→ ${mod.label}`);
 
-      const clickRes = await client.send('tools/call', {
-        name: 'electron_click',
-        arguments: { sessionId, selector: `button[aria-label="${mod.label}"]` },
-      });
-      const clickOk =
-        clickRes.error === undefined && (parseEnvelope(clickRes) as { ok?: boolean })?.ok !== false;
+      let clickOk: boolean;
+      if (navScriptTemplate !== undefined) {
+        const navRes = await client.send('tools/call', {
+          name: 'electron_evaluate_renderer',
+          arguments: { sessionId, expression: renderNavExpression(navScriptTemplate, mod) },
+        });
+        clickOk =
+          navRes.error === undefined &&
+          (navRes.result as { isError?: boolean } | undefined)?.isError !== true;
+      } else {
+        const clickRes = await client.send('tools/call', {
+          name: 'electron_click',
+          arguments: { sessionId, selector: `button[aria-label="${mod.label}"]` },
+        });
+        clickOk =
+          clickRes.error === undefined &&
+          (parseEnvelope(clickRes) as { ok?: boolean })?.ok !== false;
+      }
 
-      const rootSelector = `[data-testid="${mod.id}-root"]`;
+      const rootSelector = `[data-testid="${rootTestIdOf(mod)}"]`;
       await client.send(
         'tools/call',
         {

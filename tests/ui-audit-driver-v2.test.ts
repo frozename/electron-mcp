@@ -10,7 +10,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
-import { loadModules, parseArgs, type Options } from './ui-audit-driver-v2.js';
+import {
+  loadModules,
+  parseArgs,
+  renderNavExpression,
+  rootTestIdOf,
+  type Module,
+  type Options,
+} from './ui-audit-driver-v2.js';
 
 /** Build a full argv the way Node.js does: node binary, script path, then flags. */
 function argv(...flags: string[]): string[] {
@@ -196,6 +203,25 @@ describe('ui-audit-driver-v2 parseArgs', () => {
     expect(opts.executable).toBe('/x');
     expect(opts.updateBaselines).toBe(false);
   });
+
+  test('--nav-script and --setup-script default to undefined', () => {
+    const opts = parseArgs(argv('--executable=/x', `--modules=${modulesJsonPath}`));
+    expect(opts.navScriptPath).toBeUndefined();
+    expect(opts.setupScriptPath).toBeUndefined();
+  });
+
+  test('--nav-script=<path> and --setup-script=<path> parse', () => {
+    const opts = parseArgs(
+      argv(
+        '--executable=/x',
+        `--modules=${modulesJsonPath}`,
+        '--nav-script=/repo/tests/nav.js',
+        '--setup-script=/repo/tests/setup.js',
+      ),
+    );
+    expect(opts.navScriptPath).toBe('/repo/tests/nav.js');
+    expect(opts.setupScriptPath).toBe('/repo/tests/setup.js');
+  });
 });
 
 describe('ui-audit-driver-v2 loadModules', () => {
@@ -244,6 +270,75 @@ describe('ui-audit-driver-v2 loadModules', () => {
     const p = join(tmpModulesDir, 'not-object.json');
     writeFileSync(p, JSON.stringify(['just a string']));
     expect(() => loadModules(p)).toThrow(/\[0\] is not an object/);
+  });
+
+  test('accepts optional rootTestId and preserves it', () => {
+    const p = join(tmpModulesDir, 'with-root-testid.json');
+    writeFileSync(
+      p,
+      JSON.stringify([
+        { id: 'home', label: 'Home' },
+        { id: 'app.settings', label: 'Settings', rootTestId: 'app-settings-root' },
+      ]),
+    );
+    const mods = loadModules(p);
+    expect(mods).toEqual([
+      { id: 'home', label: 'Home' },
+      { id: 'app.settings', label: 'Settings', rootTestId: 'app-settings-root' },
+    ]);
+  });
+
+  test('rejects empty-string rootTestId', () => {
+    const p = join(tmpModulesDir, 'empty-root-testid.json');
+    writeFileSync(p, JSON.stringify([{ id: 'home', label: 'Home', rootTestId: '' }]));
+    expect(() => loadModules(p)).toThrow(
+      /\[0\]\.rootTestId must be a non-empty string when present/,
+    );
+  });
+
+  test('rejects non-string rootTestId', () => {
+    const p = join(tmpModulesDir, 'numeric-root-testid.json');
+    writeFileSync(p, JSON.stringify([{ id: 'home', label: 'Home', rootTestId: 42 }]));
+    expect(() => loadModules(p)).toThrow(
+      /\[0\]\.rootTestId must be a non-empty string when present/,
+    );
+  });
+});
+
+describe('ui-audit-driver-v2 rootTestIdOf', () => {
+  test('defaults to <id>-root', () => {
+    expect(rootTestIdOf({ id: 'home', label: 'Home' })).toBe('home-root');
+  });
+
+  test('rootTestId overrides the derivation', () => {
+    const mod: Module = { id: 'app.settings', label: 'Settings', rootTestId: 'app-settings-root' };
+    expect(rootTestIdOf(mod)).toBe('app-settings-root');
+  });
+});
+
+describe('ui-audit-driver-v2 renderNavExpression', () => {
+  const mod: Module = { id: 'app.settings', label: 'Settings "panel"' };
+
+  test('{{id}}/{{label}} substitute raw', () => {
+    expect(renderNavExpression('open("{{id}}")', mod)).toBe('open("app.settings")');
+    expect(renderNavExpression('title: {{label}}', mod)).toBe('title: Settings "panel"');
+  });
+
+  test('{{idJson}}/{{labelJson}} substitute JSON-stringified (quotes included)', () => {
+    expect(renderNavExpression('open({{idJson}})', mod)).toBe('open("app.settings")');
+    expect(renderNavExpression('title({{labelJson}})', mod)).toBe(
+      'title("Settings \\"panel\\"")',
+    );
+  });
+
+  test('every occurrence is replaced, not just the first', () => {
+    expect(renderNavExpression('{{id}}+{{id}} {{idJson}}/{{idJson}}', mod)).toBe(
+      'app.settings+app.settings "app.settings"/"app.settings"',
+    );
+  });
+
+  test('a template with no placeholders passes through unchanged', () => {
+    expect(renderNavExpression('window.noop()', mod)).toBe('window.noop()');
   });
 });
 
