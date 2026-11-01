@@ -71,5 +71,6 @@ jobs:
             /tmp/electron-mcp-sprint1
             /tmp/electron-mcp-sprint2
             /tmp/electron-mcp-sprint3
+            /tmp/electron-mcp-audit-smoke
           if-no-files-found: ignore
           retention-days: 7

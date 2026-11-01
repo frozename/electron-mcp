@@ -30,7 +30,7 @@
  * (exit 1) when any module breaches the ratio/per-pixel threshold.
  */
 import { spawn, type ChildProcessByStdio } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import type { Readable, Writable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
@@ -552,9 +552,12 @@ async function main(): Promise<void> {
       if (args.baselinesDir) {
         const baselinePath = join(args.baselinesDir, `${mod.id}.png`);
         const diffPath = args.diffDir ? join(args.diffDir, `${mod.id}.png`) : undefined;
+        // A fresh directory keeps captures distinct from preexisting baselines, even under out-dir.
+        const currentPath = join(mkdtempSync(join(args.outDir, 'compared-')), 'current.png');
         const diffArgs: Record<string, unknown> = {
           sessionId,
           baselinePath,
+          currentPath,
           updateBaseline: args.updateBaselines,
           threshold: args.threshold,
           pixelThreshold: args.pixelThreshold,

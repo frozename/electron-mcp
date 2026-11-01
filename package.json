@@ -29,7 +29,8 @@
     "test:smoke:sprint1": "tsx tests/sprint1-smoke.ts --executable=$CI_ELECTRON_BIN --args=tests/fixtures/ci-app/main.js",
     "test:smoke:sprint2": "tsx tests/sprint2-smoke.ts --executable=$CI_ELECTRON_BIN --args=tests/fixtures/ci-app/main.js",
     "test:smoke:sprint3": "tsx tests/sprint3-smoke.ts --executable=$CI_ELECTRON_BIN --args=tests/fixtures/ci-app/main.js",
-    "test:smoke:all": "npm run test:smoke:sprint1 && npm run test:smoke:sprint2 && npm run test:smoke:sprint3",
+    "test:smoke:audit": "tsx tests/ui-audit-artifacts-smoke.ts",
+    "test:smoke:all": "npm run test:smoke:sprint1 && npm run test:smoke:sprint2 && npm run test:smoke:sprint3 && npm run test:smoke:audit",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
