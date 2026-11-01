@@ -11,11 +11,7 @@ import {
   type ElectronRestartInput,
 } from '../schemas/index.js';
 import { LaunchError, normalizeError } from '../errors/index.js';
-import {
-  cleanupUserDataDir,
-  redactEnvForLog,
-  resolveUserDataDir,
-} from '../utils/user-data-dir.js';
+import { cleanupUserDataDir, redactEnvForLog, resolveUserDataDir } from '../utils/user-data-dir.js';
 
 import type { ToolContext, ToolHandler } from './types.js';
 

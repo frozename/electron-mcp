@@ -480,7 +480,10 @@ export class ElectronAdapter {
         await client.send('Accessibility.enable');
 
         type AXValue = { value?: unknown; type?: string };
-        interface AXPropertyValue { name: string; value?: AXValue }
+        interface AXPropertyValue {
+          name: string;
+          value?: AXValue;
+        }
         interface AXNodeRaw {
           nodeId: string;
           parentId?: string;
@@ -653,16 +656,20 @@ export function composeLaunchArgs(
 ): string[] {
   const out = [...(baseArgs ?? [])];
   if (!userDataDir) return out;
-  const hasExplicit = out.some(
-    (a) => a === '--user-data-dir' || a.startsWith('--user-data-dir='),
-  );
+  const hasExplicit = out.some((a) => a === '--user-data-dir' || a.startsWith('--user-data-dir='));
   if (hasExplicit) return out;
   out.push(`--user-data-dir=${userDataDir}`);
   return out;
 }
 
-interface AXSnapshotValue { value?: unknown; type?: string }
-interface AXSnapshotProperty { name: string; value?: AXSnapshotValue }
+interface AXSnapshotValue {
+  value?: unknown;
+  type?: string;
+}
+interface AXSnapshotProperty {
+  name: string;
+  value?: AXSnapshotValue;
+}
 interface AXSnapshotNodeRaw {
   nodeId: string;
   parentId?: string;

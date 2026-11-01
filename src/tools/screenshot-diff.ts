@@ -90,9 +90,7 @@ export const electronScreenshotDiff: ToolHandler<
 > = async (rawInput, ctx) => {
   const input = ScreenshotDiffInputSchema.parse(rawInput);
   const timeoutMs = input.timeout ?? ctx.config.actionTimeoutMs;
-  const currentPath = input.currentPath
-    ? path.resolve(input.currentPath)
-    : await mintTmpPngPath();
+  const currentPath = input.currentPath ? path.resolve(input.currentPath) : await mintTmpPngPath();
 
   const session = ctx.sessions.get(input.sessionId);
 
@@ -129,8 +127,7 @@ export const electronScreenshotDiff: ToolHandler<
       diffRatio: 0,
       thresholdBreached: false,
       currentPath,
-      message:
-        `Baseline not found at ${baselinePath}. Pass updateBaseline:true to seed it from the current view.`,
+      message: `Baseline not found at ${baselinePath}. Pass updateBaseline:true to seed it from the current view.`,
     } satisfies ScreenshotDiffOutput);
   }
 
