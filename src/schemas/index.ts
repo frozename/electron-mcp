@@ -44,7 +44,7 @@ export const ElectronLaunchInputSchema = z.object({
     .string()
     .optional()
     .describe(
-      'Directory to pass via Electron\'s --user-data-dir flag. If omitted, ' +
+      "Directory to pass via Electron's --user-data-dir flag. If omitted, " +
         'a fresh tmp dir is minted for the session and removed on close. If a ' +
         'SingletonLock from an active process is detected, a tmp dir is ' +
         'substituted (unless strictUserDataDir is true).',
@@ -79,9 +79,7 @@ export const ElectronLaunchOutputSchema = z.object({
   status: z.string(),
   startedAt: z.string(),
   windowCount: z.number().int().nonnegative(),
-  userDataDir: z
-    .string()
-    .describe('Resolved --user-data-dir value used for this launch.'),
+  userDataDir: z.string().describe('Resolved --user-data-dir value used for this launch.'),
   autoTmp: z
     .boolean()
     .describe('True when userDataDir was auto-minted as a tmp dir by the server.'),
@@ -337,10 +335,9 @@ export const ElectronSelectOptionInputSchema = z
       .describe('Pick option(s) by zero-based index.'),
     timeout: TimeoutSchema,
   })
-  .refine(
-    (v) => v.value !== undefined || v.label !== undefined || v.index !== undefined,
-    { message: 'One of value, label, or index is required' },
-  );
+  .refine((v) => v.value !== undefined || v.label !== undefined || v.index !== undefined, {
+    message: 'One of value, label, or index is required',
+  });
 export type ElectronSelectOptionInput = z.infer<typeof ElectronSelectOptionInputSchema>;
 
 export const ElectronSelectOptionOutputSchema = z.object({
@@ -365,10 +362,7 @@ export const DialogPolicyKindSchema = z
 export const ElectronDialogPolicyInputSchema = z.object({
   sessionId: SessionIdSchema,
   policy: DialogPolicyKindSchema,
-  promptText: z
-    .string()
-    .optional()
-    .describe('Text to supply when accepting prompt() dialogs.'),
+  promptText: z.string().optional().describe('Text to supply when accepting prompt() dialogs.'),
 });
 export type ElectronDialogPolicyInput = z.infer<typeof ElectronDialogPolicyInputSchema>;
 
@@ -376,7 +370,11 @@ export const ElectronDialogPolicyOutputSchema = z.object({
   ok: z.literal(true),
   sessionId: z.string(),
   policy: DialogPolicyKindSchema,
-  handled: z.number().int().nonnegative().describe('Total dialogs handled since the session started.'),
+  handled: z
+    .number()
+    .int()
+    .nonnegative()
+    .describe('Total dialogs handled since the session started.'),
 });
 export type ElectronDialogPolicyOutput = z.infer<typeof ElectronDialogPolicyOutputSchema>;
 
@@ -477,11 +475,7 @@ export const ElectronNetworkTailInputSchema = z.object({
     .optional()
     .default(false)
     .describe('If true, only entries with status >= 400 or failed=true.'),
-  drain: z
-    .boolean()
-    .optional()
-    .default(false)
-    .describe('Remove returned entries from the buffer.'),
+  drain: z.boolean().optional().default(false).describe('Remove returned entries from the buffer.'),
 });
 export type ElectronNetworkTailInput = z.infer<typeof ElectronNetworkTailInputSchema>;
 
@@ -686,7 +680,9 @@ export const ScreenshotDiffOutputSchema = z.object({
   sessionId: z.string(),
   baselineExists: z
     .boolean()
-    .describe('True if the baseline existed BEFORE this call (always false when updateBaseline=true).'),
+    .describe(
+      'True if the baseline existed BEFORE this call (always false when updateBaseline=true).',
+    ),
   diffPixels: z.number().int().nonnegative(),
   totalPixels: z.number().int().nonnegative(),
   diffRatio: z.number().min(0).max(1),
@@ -765,10 +761,7 @@ export const AssertVisibleTextOutputSchema = z.object({
     .optional()
     .describe('Short path-based selector for the first match (best-effort).'),
   /** Matched text (exact extract from the DOM). */
-  matchedText: z
-    .string()
-    .optional()
-    .describe('The exact text content of the matched element.'),
+  matchedText: z.string().optional().describe('The exact text content of the matched element.'),
   /** When ok:false, up to 3 closest matches to help debug. */
   nearestMatches: z
     .array(AssertVisibleTextNearestMatchSchema)

@@ -6,7 +6,7 @@ import {
   type NetworkEntry,
 } from '../schemas/index.js';
 
-import type { ToolHandler } from './types.js';
+import { syncToolHandler } from './types.js';
 
 function statusOk(entry: NetworkEntry, statuses: readonly number[] | undefined): boolean {
   if (!statuses || statuses.length === 0) return true;
@@ -33,10 +33,10 @@ function safeRegex(input: string | undefined): RegExp | null {
   }
 }
 
-export const electronNetworkTail: ToolHandler<
+export const electronNetworkTail = syncToolHandler<
   ElectronNetworkTailInput,
   ElectronNetworkTailOutput
-> = async (rawInput, ctx) => {
+>((rawInput, ctx) => {
   const input = ElectronNetworkTailInputSchema.parse(rawInput);
   const session = ctx.sessions.get(input.sessionId);
   const buffer = session.networkBuffer;
@@ -44,7 +44,9 @@ export const electronNetworkTail: ToolHandler<
 
   const filtered = buffer.entries.filter(
     (entry) =>
-      urlOk(entry, pattern) && statusOk(entry, input.status) && failureOk(entry, input.onlyFailures),
+      urlOk(entry, pattern) &&
+      statusOk(entry, input.status) &&
+      failureOk(entry, input.onlyFailures),
   );
   const sliceStart = Math.max(0, filtered.length - input.limit);
   const selected = filtered.slice(sliceStart);
@@ -63,4 +65,4 @@ export const electronNetworkTail: ToolHandler<
     dropped: buffer.dropped,
     bufferSize: buffer.entries.length,
   });
-};
+});

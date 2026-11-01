@@ -6,12 +6,12 @@ import {
 } from '../schemas/index.js';
 import { setDialogPolicy } from '../session/dialog-policy.js';
 
-import type { ToolHandler } from './types.js';
+import { syncToolHandler } from './types.js';
 
-export const electronDialogPolicy: ToolHandler<
+export const electronDialogPolicy = syncToolHandler<
   ElectronDialogPolicyInput,
   ElectronDialogPolicyOutput
-> = async (rawInput, ctx) => {
+>((rawInput, ctx) => {
   const input = ElectronDialogPolicyInputSchema.parse(rawInput);
   const session = ctx.sessions.get(input.sessionId);
   setDialogPolicy(session, input.policy, input.promptText);
@@ -23,4 +23,4 @@ export const electronDialogPolicy: ToolHandler<
     policy: input.policy,
     handled: session.dialog.handled,
   });
-};
+});

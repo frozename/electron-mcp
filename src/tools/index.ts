@@ -180,7 +180,7 @@ export function buildToolRegistry(): ToolDefinition[] {
       description:
         'Assert that a piece of text is visible (or attached, when includeHidden:true) inside a ' +
         'window. Supports substring (default) or regex matching, optional selector scope, and ' +
-        'polls up to timeoutMs using Playwright\'s built-in locator waits. On failure returns up ' +
+        "polls up to timeoutMs using Playwright's built-in locator waits. On failure returns up " +
         'to 3 nearest text candidates to aid debugging.',
       inputSchema: zodToJsonSchema(AssertVisibleTextInputSchema),
       handler: electronAssertVisibleText as unknown as ToolHandler<unknown, unknown>,
@@ -265,8 +265,7 @@ export function buildToolRegistry(): ToolDefinition[] {
     },
     {
       name: 'electron_trace_stop',
-      description:
-        'Stop Playwright tracing and write the trace bundle to `path` (absolute).',
+      description: 'Stop Playwright tracing and write the trace bundle to `path` (absolute).',
       inputSchema: zodToJsonSchema(ElectronTraceStopInputSchema),
       handler: electronTraceStop as unknown as ToolHandler<unknown, unknown>,
     },
