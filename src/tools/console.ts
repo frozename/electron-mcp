@@ -6,7 +6,7 @@ import {
   type ElectronConsoleTailOutput,
 } from '../schemas/index.js';
 
-import type { ToolHandler } from './types.js';
+import { syncToolHandler } from './types.js';
 
 function matchesLevel(entry: ConsoleEntry, levels: readonly string[] | undefined): boolean {
   if (!levels || levels.length === 0) return true;
@@ -31,10 +31,10 @@ function safeRegex(input: string | undefined): RegExp | null {
   }
 }
 
-export const electronConsoleTail: ToolHandler<
+export const electronConsoleTail = syncToolHandler<
   ElectronConsoleTailInput,
   ElectronConsoleTailOutput
-> = async (rawInput, ctx) => {
+>((rawInput, ctx) => {
   const input = ElectronConsoleTailInputSchema.parse(rawInput);
   const session = ctx.sessions.get(input.sessionId);
   const buffer = session.consoleBuffer;
@@ -64,4 +64,4 @@ export const electronConsoleTail: ToolHandler<
     dropped: buffer.dropped,
     bufferSize: buffer.entries.length,
   });
-};
+});
