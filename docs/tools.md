@@ -19,18 +19,18 @@ Conventions:
 
 Launch an Electron application via Playwright.
 
-| Field                | Type                         | Notes                                                     |
-| -------------------- | ---------------------------- | --------------------------------------------------------- |
-| `executablePath`     | string (required)            | Absolute path; subject to allowlist                       |
-| `args`               | string[]                     | Passed to Electron                                        |
-| `cwd`                | string                       | Working directory                                         |
-| `env`                | object                       | Merged with process env (secret-shaped keys redacted in logs) |
-| `userDataDir`        | string                       | Passed via `--user-data-dir`. If omitted, an auto-tmp dir is minted. Locked dirs trigger auto-substitute unless strict. |
-| `strictUserDataDir`  | boolean (default false)      | When true, fail with `launch_error` if `userDataDir` is locked instead of auto-substituting |
-| `timeout`            | number (ms)                  | Override `ELECTRON_MCP_LAUNCH_TIMEOUT`                    |
-| `recordVideoDir`     | string                       | Forwarded to Playwright                                   |
-| `colorScheme`        | `light\|dark\|no-preference` | Forwarded to Playwright                                   |
-| `label`              | string                       | Stored with the session for listings/logs                 |
+| Field               | Type                         | Notes                                                                                                                   |
+| ------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `executablePath`    | string (required)            | Absolute path; subject to allowlist                                                                                     |
+| `args`              | string[]                     | Passed to Electron                                                                                                      |
+| `cwd`               | string                       | Working directory                                                                                                       |
+| `env`               | object                       | Merged with process env (secret-shaped keys redacted in logs)                                                           |
+| `userDataDir`       | string                       | Passed via `--user-data-dir`. If omitted, an auto-tmp dir is minted. Locked dirs trigger auto-substitute unless strict. |
+| `strictUserDataDir` | boolean (default false)      | When true, fail with `launch_error` if `userDataDir` is locked instead of auto-substituting                             |
+| `timeout`           | number (ms)                  | Override `ELECTRON_MCP_LAUNCH_TIMEOUT`                                                                                  |
+| `recordVideoDir`    | string                       | Forwarded to Playwright                                                                                                 |
+| `colorScheme`       | `light\|dark\|no-preference` | Forwarded to Playwright                                                                                                 |
+| `label`             | string                       | Stored with the session for listings/logs                                                                               |
 
 Response:
 
@@ -201,19 +201,19 @@ Capture a window (or a selector-scoped region) and compare it pixel-wise
 against a caller-supplied baseline PNG. Useful for catching layout /
 styling regressions that humans only spot by eyeballing screenshots.
 
-| Field            | Type                 | Notes                                                                         |
-| ---------------- | -------------------- | ----------------------------------------------------------------------------- |
-| `sessionId`      | string (required)    | Session handle                                                                |
-| `window`         | index / string       | Window reference                                                              |
-| `selector`       | string               | If set, uses `locator.screenshot()` scoped to the element; otherwise full viewport |
-| `baselinePath`   | string (required)    | Absolute path to the baseline PNG. Caller-supplied to avoid cross-session leaks |
-| `updateBaseline` | boolean (default false) | Overwrite the baseline with the current capture and return `ok: true`      |
-| `threshold`      | number 0..1 (default 0.01) | Ratio of changed pixels tolerated before `ok` becomes false             |
-| `pixelThreshold` | number 0..255 (default 0) | Per-pixel color distance tolerance (0 = exact)                           |
-| `diffPath`       | string               | If set AND diffs exist, writes a diff PNG to this path                        |
-| `currentPath`    | string               | Optional absolute path for the current capture. Defaults to a tmp file        |
-| `fullPage`       | boolean (default false) | Capture the full scrollable page. Ignored when `selector` is set           |
-| `timeout`        | number (ms)          | Override the default action timeout                                           |
+| Field            | Type                       | Notes                                                                              |
+| ---------------- | -------------------------- | ---------------------------------------------------------------------------------- |
+| `sessionId`      | string (required)          | Session handle                                                                     |
+| `window`         | index / string             | Window reference                                                                   |
+| `selector`       | string                     | If set, uses `locator.screenshot()` scoped to the element; otherwise full viewport |
+| `baselinePath`   | string (required)          | Absolute path to the baseline PNG. Caller-supplied to avoid cross-session leaks    |
+| `updateBaseline` | boolean (default false)    | Overwrite the baseline with the current capture and return `ok: true`              |
+| `threshold`      | number 0..1 (default 0.01) | Ratio of changed pixels tolerated before `ok` becomes false                        |
+| `pixelThreshold` | number 0..255 (default 0)  | Per-pixel color distance tolerance (0 = exact)                                     |
+| `diffPath`       | string                     | If set AND diffs exist, writes a diff PNG to this path                             |
+| `currentPath`    | string                     | Optional absolute path for the current capture. Defaults to a tmp file             |
+| `fullPage`       | boolean (default false)    | Capture the full scrollable page. Ignored when `selector` is set                   |
+| `timeout`        | number (ms)                | Override the default action timeout                                                |
 
 Response:
 
@@ -244,15 +244,15 @@ Assert a piece of text is present (and by default visible) in the
 current window. Uses Playwright's `locator.waitFor({ state: 'visible' })`
 as the polling primitive — no manual sleep loops.
 
-| Field           | Type                 | Notes                                                                |
-| --------------- | -------------------- | -------------------------------------------------------------------- |
-| `sessionId`     | string (required)    | Session handle                                                       |
-| `window`        | index / string       | Window reference                                                     |
-| `text`          | string (required)    | Substring (default) or a RegExp source when `regex: true`            |
-| `regex`         | boolean (default false) | Treat `text` as a RegExp source (no flags)                        |
-| `selector`      | string               | Scope the text search under this element                             |
-| `includeHidden` | boolean (default false) | Match hidden nodes too; waits for `attached` instead of `visible` |
-| `timeoutMs`     | number 0..30000 (default 5000) | Polling deadline; `0` means a single immediate check       |
+| Field           | Type                           | Notes                                                             |
+| --------------- | ------------------------------ | ----------------------------------------------------------------- |
+| `sessionId`     | string (required)              | Session handle                                                    |
+| `window`        | index / string                 | Window reference                                                  |
+| `text`          | string (required)              | Substring (default) or a RegExp source when `regex: true`         |
+| `regex`         | boolean (default false)        | Treat `text` as a RegExp source (no flags)                        |
+| `selector`      | string                         | Scope the text search under this element                          |
+| `includeHidden` | boolean (default false)        | Match hidden nodes too; waits for `attached` instead of `visible` |
+| `timeoutMs`     | number 0..30000 (default 5000) | Polling deadline; `0` means a single immediate check              |
 
 Response on success:
 
